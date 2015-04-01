@@ -3,3 +3,8 @@
 - Add "cons" builtin (atom, qexpr) x, y = x:y
 - Add "len" builtin (qexpr) x = len x
 - Add "init" builtin (qexpr) x = init x (returns all but fst elem)
+- ":q" for quitting the prompt
+- ":l" for loading a file
+- builtin that lists defined syms in env
+- error when trying to redefine builtins
+- printing a function should show it's name
