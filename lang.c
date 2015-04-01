@@ -2,8 +2,28 @@
 #include "mpc.h"
 #include "lang.h"
 
-#define LASSERT(args, cond, err) \
-    if (!(cond)) { lval_delete(args); return lval_err(err); }
+#define LASSERT(args, cond, fmt, ...) \
+    if (!(cond)) { \
+      lval* err = lval_err(fmt, ##__VA_ARGS__); \
+      lval_delete(args); \
+      return err; \
+    }
+
+#define LASSERT_TYPE(args, target, wtype, fmt, ...) \
+    if (target->type != wtype) { \
+      lval* err = lval_err(fmt, ##__VA_ARGS__); \
+      lval_delete(args); \
+      return err; \
+    }
+
+#define LASSERT_CELL_TYPES(args, type, fmt, ...) \
+    for (int i = 0; i < args->count; i++) { \
+      if (args->cell[i]->type != type) { \
+        lval* err = lval_err(fmt, ##__VA_ARGS__); \
+        lval_delete(args); \
+        return err; \
+      } \
+    }
 
 // Construct an new environment
 lenv* lenv_new(void) {
@@ -32,7 +52,7 @@ lval* lenv_get(lenv* e, lval* k) {
     }
   }
   // No match :(
-  return lval_err("unbound symbol!");
+  return lval_err("Unbound symbol '%s'", k->sym);
 }
 
 void lenv_put(lenv* e, lval* k, lval* v) {
@@ -57,7 +77,7 @@ void lenv_put(lenv* e, lval* k, lval* v) {
 
 void lenv_add_builtin(lenv* e, char* name, lbuiltin func) {
   lval* k = lval_sym(name);
-  lval* v = lval_fun(func);
+  lval* v = lval_builtin(func);
   lenv_put(e, k, v);
   lval_delete(k); lval_delete(v);
 }
@@ -80,6 +100,18 @@ void lenv_add_builtins(lenv* e) {
   lenv_add_builtin(e, "def",  builtin_def);
 }
 
+// type name for errors
+char* ltype_name(int t) {
+  switch(t) {
+    case LVAL_FUN: return "Function";
+    case LVAL_NUM: return "Number";
+    case LVAL_ERR: return "Error";
+    case LVAL_SYM: return "Symbol";
+    case LVAL_SEXPR: return "S-Expression";
+    case LVAL_QEXPR: return "Q-Expression";
+    default: return "Unknown";
+  }
+}
 
 // Construct a pointer to a number
 lval* lval_num(long x) {
@@ -90,11 +122,20 @@ lval* lval_num(long x) {
 }
 
 // Construct a pointer to an error
-lval* lval_err(char* m) {
+lval* lval_err(char* fmt, ...) {
   lval* v = malloc(sizeof(lval));
   v->type = LVAL_ERR;
-  v->err = malloc(strlen(m) + 1);
-  strcpy(v->err, m);
+
+  va_list va;
+  va_start(va, fmt);
+
+  // printf err at a max of 511 chars
+  v->err = malloc(512);
+  vsnprintf(v->err, 511, fmt, va);
+
+  // realloc to take only the bytes we need
+  v->err = realloc(v->err, strlen(v->err)+1);
+  va_end(va);
   return v;
 }
 
@@ -107,11 +148,25 @@ lval* lval_sym(char* m) {
   return v;
 }
 
-// Construct a pointer to a fun
-lval* lval_fun(lbuiltin func) {
+// Construct a pointer to a builtin
+lval* lval_builtin(lbuiltin builtin) {
   lval* v = malloc(sizeof(lval));
   v->type = LVAL_FUN;
-  v->fun = func;
+  v->builtin = builtin;
+  return v;
+}
+
+// Construct a pointer to a lambda
+lval* lval_lambda(lval* formals, lval* body) {
+  lval* v = malloc(sizeof(lval));
+  v->type = LVAL_FUN;
+
+  // this is how we tell it's a lambda not a builtin
+  v->builtin = NULL;
+  v->env = lenv_new();
+
+  v->formals = formals;
+  v->body = body;
   return v;
 }
 
@@ -148,7 +203,7 @@ lval* lval_copy(lval* v) {
 
   switch (v->type) {
     // Copy functions and numbers directly
-    case LVAL_FUN: x->fun = v->fun; break;
+    case LVAL_FUN: x->builtin = v->builtin; break;
     case LVAL_NUM: x->num = v->num; break;
 
     // Copy strings using malloc and strcpy
@@ -176,9 +231,16 @@ lval* lval_copy(lval* v) {
 // Free the head from an lval
 void lval_delete(lval* v) {
   switch (v->type) {
-    // Do nothing special for numbers and funcs
+    // Do nothing special for numbers
     case LVAL_NUM: break;
-    case LVAL_FUN: break;
+
+    case LVAL_FUN:
+      if (!v->builtin) {
+        lenv_delete(v->env);
+        lval_delete(v->formals);
+        lval_delete(v->body);
+      }
+    break;
 
     // For err and sym free the string data
     case LVAL_ERR: free(v->err); break;
@@ -291,10 +353,9 @@ lval* lval_read(mpc_ast_t* t) {
 lval* builtin_op(lenv* e, lval* a, char* op) {
   // ensure all elems left are numbers
   for (int i = 0; i < a->count; i++) {
-    if (a->cell[i]->type != LVAL_NUM) {
-      lval_delete(a);
-      return lval_err("Cannot operate on non-number!");
-    }
+    LASSERT_TYPE(a, a->cell[i], LVAL_NUM,
+      "Function '%s' passed incorrect type for argument %i. Got %s, expected %s.",
+      op, i+1, ltype_name(a->cell[i]->type), ltype_name(LVAL_NUM));
   }
 
   lval* x = lval_pop(a, 0);
@@ -342,9 +403,10 @@ lval* builtin_div(lenv* e, lval* a) {
 
 lval* builtin_head(lenv* e, lval* v) {
   LASSERT(v, v->count == 1,
-    "Function 'head' passed too many arguments!");
-  LASSERT(v, v->cell[0]->type == LVAL_QEXPR,
-    "Function 'head' passed incorrect type!");
+    "Function 'head' passed too many arguments! Got '%i', Expected '1'", v->count);
+  LASSERT_TYPE(v, v->cell[0], LVAL_QEXPR,
+    "Function 'head' passed incorrect type for argument 0! Got '%s', Expected '%s'",
+    ltype_name(v->cell[0]->type), ltype_name(LVAL_QEXPR));
   LASSERT(v, v->cell[0]->count != 0,
     "Function 'head' passed {}!");
 
@@ -356,9 +418,10 @@ lval* builtin_head(lenv* e, lval* v) {
 
 lval* builtin_tail(lenv* e, lval* v) {
   LASSERT(v, v->count == 1,
-    "Function 'tail' passed too many arguments!");
-  LASSERT(v, v->cell[0]->type == LVAL_QEXPR,
-    "Function 'tail' passed incorrect type!");
+    "Function 'tail' passed too many arguments! Got '%i', Expected '1'", v->count);
+  LASSERT_TYPE(v, v->cell[0], LVAL_QEXPR,
+    "Function 'tail' passed incorrect type for argument 0! Got '%s', Expected '%s'",
+    ltype_name(v->cell[0]->type), ltype_name(LVAL_QEXPR));
   LASSERT(v, v->cell[0]->count != 0,
     "Function 'tail' passed {}!");
 
@@ -455,7 +518,7 @@ lval* lval_eval_sexpr(lenv* e, lval* v) {
   }
 
   // Call builtin operator
-  lval* result = f->fun(e, v);
+  lval* result = f->builtin(e, v);
   lval_delete(f);
   return result;
 }
