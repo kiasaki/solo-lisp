@@ -38,6 +38,7 @@ void lval_expr_print(lval*, char, char);
 void lval_print(lval*);
 void lval_println(lval*);
 
-lval* parse_lval_str(char*);
+lval* lval_read_str(char*);
+lval* lval_eval(lval*);
 
 #endif

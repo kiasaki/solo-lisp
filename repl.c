@@ -32,8 +32,7 @@ int main(int argc, char** argv) {
     char* input = readline("λ: ");
     add_history(input);
 
-    lval* v = NULL;
-    v = parse_lval_str(input);
+    lval* v = lval_eval(lval_read_str(input));
     lval_println(v);
     lval_delete(v);
 
