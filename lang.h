@@ -70,6 +70,7 @@ lval* builtin_tail(lenv*, lval*);
 lval* builtin_list(lenv*, lval*);
 lval* builtin_eval(lenv*, lval*);
 lval* builtin_join(lenv*, lval*);
+lval* builtin_def(lenv*, lval*);
 lval* builtin_add(lenv*, lval*);
 lval* builtin_sub(lenv*, lval*);
 lval* builtin_mul(lenv*, lval*);

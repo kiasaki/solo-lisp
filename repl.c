@@ -28,19 +28,22 @@ int main(int argc, char** argv) {
   puts("REPL v0.0.1");
   puts("Press Ctrl+c to exit\n");
 
+  // start a clean env, outside loop
+  lenv* e = lenv_new();
+  lenv_add_builtins(e);
+
   while(1) {
     char* input = readline("λ: ");
     add_history(input);
 
-    lenv* e = lenv_new();
-    lenv_add_builtins(e);
     lval* v = lval_eval(e, lval_read_str(input));
     lval_println(v);
     lval_delete(v);
-    lenv_delete(e);
 
     free(input);
   }
+
+  lenv_delete(e);
 
   return 0;
 }

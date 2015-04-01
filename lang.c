@@ -75,6 +75,9 @@ void lenv_add_builtins(lenv* e) {
   lenv_add_builtin(e, "-", builtin_sub);
   lenv_add_builtin(e, "*", builtin_mul);
   lenv_add_builtin(e, "/", builtin_div);
+
+  // variables
+  lenv_add_builtin(e, "def",  builtin_def);
 }
 
 
@@ -395,6 +398,28 @@ lval* builtin_join(lenv* e, lval* v) {
 
   lval_delete(v);
   return x;
+}
+
+lval* builtin_def(lenv* e, lval* v) {
+  LASSERT(v, v->cell[0]->type == LVAL_QEXPR,
+    "Function 'def' passed incorrect type!");
+
+  lval* syms = v->cell[0];
+  for (int i = 0; i < syms->count; i++) {
+    LASSERT(v, syms->cell[i]->type == LVAL_SYM,
+      "Function 'def' cannot define non-symbol");
+  }
+
+  LASSERT(v, syms->count == v->count-1,
+    "Function 'def' cannot define incorrect "
+    "number of values to symbols");
+
+  for (int i = 0; i < syms->count; i++) {
+    lenv_put(e, syms->cell[i], v->cell[i+1]);
+  }
+
+  lval_delete(v);
+  return lval_sexpr();
 }
 
 lval* lval_eval(lenv* e, lval* v) {
