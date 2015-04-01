@@ -36,7 +36,7 @@ lval* lval_sym(char* m) {
   lval* v = malloc(sizeof(lval));
   v->type = LVAL_SYM;
   v->sym = malloc(strlen(m) + 1);
-  strcpy(v->err, m);
+  strcpy(v->sym, m);
   return v;
 }
 
@@ -111,7 +111,6 @@ lval* lval_read(mpc_ast_t* t) {
 void lval_print(lval* v);
 
 void lval_expr_print(lval* v, char open, char close) {
-  printf("----> %p", v);
   putchar(open);
   for (int i = 0; i < v->count; i++) {
     lval_print(v->cell[i]);
@@ -158,7 +157,6 @@ lval* parse_lval_str(char* input) {
   lval* v;
 
   if (mpc_parse("<stdin>", input, Lispy, &r)) {
-    mpc_ast_print(r.output);
     v = lval_read(r.output);
     mpc_ast_delete(r.output);
   } else {

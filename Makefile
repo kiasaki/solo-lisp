@@ -10,5 +10,5 @@ debug: build
 	lldb repl
 
 clean:
-	rm repl
-	rm -r repl.dSYM/
+	rm repl || exit 0
+	rm -r repl.dSYM/ || exit 0
