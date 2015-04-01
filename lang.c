@@ -55,6 +55,29 @@ void lenv_put(lenv* e, lval* k, lval* v) {
   strcpy(e->syms[e->count-1], k->sym);
 }
 
+void lenv_add_builtin(lenv* e, char* name, lbuiltin func) {
+  lval* k = lval_sym(name);
+  lval* v = lval_fun(func);
+  lenv_put(e, k, v);
+  lval_delete(k); lval_delete(v);
+}
+
+void lenv_add_builtins(lenv* e) {
+  // list
+  lenv_add_builtin(e, "list", builtin_list);
+  lenv_add_builtin(e, "head", builtin_head);
+  lenv_add_builtin(e, "tail", builtin_tail);
+  lenv_add_builtin(e, "eval", builtin_eval);
+  lenv_add_builtin(e, "join", builtin_join);
+
+  // mathematical
+  lenv_add_builtin(e, "+", builtin_add);
+  lenv_add_builtin(e, "-", builtin_sub);
+  lenv_add_builtin(e, "*", builtin_mul);
+  lenv_add_builtin(e, "/", builtin_div);
+}
+
+
 // Construct a pointer to a number
 lval* lval_num(long x) {
   lval* v = malloc(sizeof(lval));
@@ -262,9 +285,7 @@ lval* lval_read(mpc_ast_t* t) {
 }
 
 // Evaluating
-lval* lval_eval(lval* v);
-
-lval* builtin_op(lval* a, char* op) {
+lval* builtin_op(lenv* e, lval* a, char* op) {
   // ensure all elems left are numbers
   for (int i = 0; i < a->count; i++) {
     if (a->cell[i]->type != LVAL_NUM) {
@@ -300,7 +321,23 @@ lval* builtin_op(lval* a, char* op) {
   lval_delete(a); return x;
 }
 
-lval* builtin_head(lval* v) {
+lval* builtin_add(lenv* e, lval* a) {
+  return builtin_op(e, a, "+");
+}
+
+lval* builtin_sub(lenv* e, lval* a) {
+  return builtin_op(e, a, "-");
+}
+
+lval* builtin_mul(lenv* e, lval* a) {
+  return builtin_op(e, a, "*");
+}
+
+lval* builtin_div(lenv* e, lval* a) {
+  return builtin_op(e, a, "/");
+}
+
+lval* builtin_head(lenv* e, lval* v) {
   LASSERT(v, v->count == 1,
     "Function 'head' passed too many arguments!");
   LASSERT(v, v->cell[0]->type == LVAL_QEXPR,
@@ -314,7 +351,7 @@ lval* builtin_head(lval* v) {
   return x;
 }
 
-lval* builtin_tail(lval* v) {
+lval* builtin_tail(lenv* e, lval* v) {
   LASSERT(v, v->count == 1,
     "Function 'tail' passed too many arguments!");
   LASSERT(v, v->cell[0]->type == LVAL_QEXPR,
@@ -328,12 +365,12 @@ lval* builtin_tail(lval* v) {
   return x;
 }
 
-lval* builtin_list(lval* v) {
+lval* builtin_list(lenv* e, lval* v) {
   v->type = LVAL_QEXPR;
   return v;
 }
 
-lval* builtin_eval(lval* v) {
+lval* builtin_eval(lenv* e, lval* v) {
   LASSERT(v, v->count == 1,
     "Function 'eval' passed too many arguments!");
   LASSERT(v, v->cell[0]->type == LVAL_QEXPR,
@@ -341,10 +378,10 @@ lval* builtin_eval(lval* v) {
 
   lval* x = lval_take(v, 0);
   x->type = LVAL_SEXPR;
-  return lval_eval(x);
+  return lval_eval(e, x);
 }
 
-lval* builtin_join(lval* v) {
+lval* builtin_join(lenv* e, lval* v) {
   for (int i = 0; i < v->count; i++) {
     LASSERT(v, v->cell[i]->type == LVAL_QEXPR,
       "Function 'join' passsed incorrect type!");
@@ -360,26 +397,20 @@ lval* builtin_join(lval* v) {
   return x;
 }
 
-lval* builtin(lval* v, char* func) {
-  if (strcmp("list", func) == 0) { return builtin_list(v); }
-  if (strcmp("head", func) == 0) { return builtin_head(v); }
-  if (strcmp("tail", func) == 0) { return builtin_tail(v); }
-  if (strcmp("join", func) == 0) { return builtin_join(v); }
-  if (strcmp("eval", func) == 0) { return builtin_eval(v); }
-  if (strstr("+-/*", func)) { return builtin_op(v, func); }
-  lval_delete(v);
-  return lval_err("Unknown builtin function!");
-}
-
-lval* lval_eval(lval* v) {
-  if (v->type == LVAL_SEXPR) { return lval_eval_sexpr(v); }
+lval* lval_eval(lenv* e, lval* v) {
+  if (v->type == LVAL_SYM) {
+    lval* x = lenv_get(e, v);
+    lval_delete(v);
+    return x;
+  }
+  if (v->type == LVAL_SEXPR) { return lval_eval_sexpr(e, v); }
   return v;
 }
 
-lval* lval_eval_sexpr(lval* v) {
+lval* lval_eval_sexpr(lenv* e, lval* v) {
   // Eval chidrens first
   for (int i = 0; i < v->count; i++) {
-    v->cell[i] = lval_eval(v->cell[i]);
+    v->cell[i] = lval_eval(e, v->cell[i]);
   }
 
   // Error checking
@@ -387,21 +418,19 @@ lval* lval_eval_sexpr(lval* v) {
     if (v->cell[i]->type == LVAL_ERR) { return lval_take(v, i); }
   }
 
-  // Empty expr "()"
+  // Empty and unary case () & (6)
   if (v->count == 0) { return v; }
-
-  // Single expr "(5)"
   if (v->count == 1) { return lval_take(v, 0); }
 
   // Ensure first elem is sym
   lval* f = lval_pop(v, 0);
-  if (f->type != LVAL_SYM) {
+  if (f->type != LVAL_FUN) {
     lval_delete(f); lval_delete(v);
-    return lval_err("sexpr doesn't start with a symbol!");
+    return lval_err("first element is not a function!");
   }
 
   // Call builtin operator
-  lval* result = builtin(v, f->sym);
+  lval* result = f->fun(e, v);
   lval_delete(f);
   return result;
 }

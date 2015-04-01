@@ -32,9 +32,12 @@ int main(int argc, char** argv) {
     char* input = readline("λ: ");
     add_history(input);
 
-    lval* v = lval_eval(lval_read_str(input));
+    lenv* e = lenv_new();
+    lenv_add_builtins(e);
+    lval* v = lval_eval(e, lval_read_str(input));
     lval_println(v);
     lval_delete(v);
+    lenv_delete(e);
 
     free(input);
   }

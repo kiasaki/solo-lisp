@@ -38,6 +38,8 @@ lenv* lenv_new(void);
 void lenv_delete(lenv*);
 lval* lenv_get(lenv*, lval*);
 void lenv_put(lenv*, lval*, lval*);
+void lenv_add_builtin(lenv*, char*, lbuiltin);
+void lenv_add_builtins(lenv*);
 
 lval* lval_num(long);
 lval* lval_err(char*);
@@ -62,16 +64,20 @@ void lval_println(lval*);
 lval* lval_read_num(mpc_ast_t*);
 lval* lval_read(mpc_ast_t* t);
 
-lval* builtin_op(lval*, char*);
-lval* builtin_head(lval*);
-lval* builtin_tail(lval*);
-lval* builtin_list(lval*);
-lval* builtin_eval(lval*);
-lval* builtin_join(lval*);
+lval* builtin_op(lenv*, lval*, char*);
+lval* builtin_head(lenv*, lval*);
+lval* builtin_tail(lenv*, lval*);
+lval* builtin_list(lenv*, lval*);
+lval* builtin_eval(lenv*, lval*);
+lval* builtin_join(lenv*, lval*);
+lval* builtin_add(lenv*, lval*);
+lval* builtin_sub(lenv*, lval*);
+lval* builtin_mul(lenv*, lval*);
+lval* builtin_div(lenv*, lval*);
 lval* builtin(lval*, char*);
 
-lval* lval_eval(lval*);
-lval* lval_eval_sexpr(lval*);
+lval* lval_eval(lenv*, lval*);
+lval* lval_eval_sexpr(lenv*, lval*);
 lval* lval_read_str(char*);
 
 #endif
