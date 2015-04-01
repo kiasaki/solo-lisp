@@ -1,0 +1,5 @@
+- Use more C macros to make the code more succinct
+- Add modulo (%) builtin
+- Add "cons" builtin (atom, qexpr) x, y = x:y
+- Add "len" builtin (qexpr) x = len x
+- Add "init" builtin (qexpr) x = init x (returns all but fst elem)
