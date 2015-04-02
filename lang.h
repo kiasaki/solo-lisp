@@ -4,6 +4,40 @@
 #include <stdlib.h>
 #include "mpc.h"
 
+#define LASSERT(args, cond, fmt, ...) \
+    if (!(cond)) { \
+      lval* err = lval_err(fmt, ##__VA_ARGS__); \
+      lval_delete(args); \
+      return err; \
+    }
+
+#define LASSERT_TYPE(fnname, value, index, expected) \
+    if (value->cell[index]->type != expected) { \
+      lval* err = lval_err( \
+        "Function '%s' passed incorrect type for argument %i. Got %s, Expected %s.", \
+        fnname, index+1, ltype_name(value->cell[index]->type), ltype_name(expected)); \
+      lval_delete(value); \
+      return err; \
+    }
+
+#define LASSERT_NUM(fnname, value, exp_count) \
+    if (value->count != exp_count) { \
+      lval* err = lval_err( \
+        "Function '%s' passed incorrect number of arguments. Got %i, Expected %i.", \
+        fnname, value->count, exp_count); \
+      lval_delete(value); \
+      return err; \
+    }
+
+#define LASSERT_CELL_TYPES(args, type, fmt, ...) \
+    for (int i = 0; i < args->count; i++) { \
+      if (args->cell[i]->type != type) { \
+        lval* err = lval_err(fmt, ##__VA_ARGS__); \
+        lval_delete(args); \
+        return err; \
+      } \
+    }
+
 enum {
   LVAL_ERR, LVAL_NUM, LVAL_SYM, LVAL_FUN,
   LVAL_SEXPR, LVAL_QEXPR
