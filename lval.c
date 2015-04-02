@@ -206,6 +206,25 @@ lval* lval_call(lenv* e, lval* f, lval* v) {
 
     // get args 0 and val 0 and bind them in function's scope
     lval* sym = lval_pop(f->formals, 0);
+
+    // Check for ...
+    if (f->formals->count > 0 && strcmp(f->formals->cell[0]->sym, "...") == 0) {
+      if (f->formals->count > 1) {
+        lval_delete(v);
+        return lval_err("Function format is invalid. "
+          "Symbol '...' not last in argument list.");
+      }
+      if (total == 0) {
+        lval_delete(v);
+        return lval_err("Function format is invalid. "
+          "Symbol '...' not preceded by a symbol.");
+      }
+
+      lenv_put(f->env, sym, builtin_list(e, v));
+      lval_delete(sym); lval_delete(lval_pop(f->formals, 0));
+      break;
+    }
+
     lval* val = lval_pop(v, 0);
     lenv_put(f->env, sym, val);
 
@@ -214,6 +233,31 @@ lval* lval_call(lenv* e, lval* f, lval* v) {
 
   // all args were bound, discard it's container
   lval_delete(v);
+
+  // (Catch calls to a function with an ellipsis that dont provide params to it)
+  //
+  // If we are missing at least 2 formals to bind all params and that the next
+  // formal symbol is '...' and that we have exactly 2 formals left
+  //
+  // return an empty list
+  if (f->formals->count > 1 &&
+    strcmp(f->formals->cell[1]->sym, "...") == 0) {
+    if (f->formals->count != 2) {
+      return lval_err("Fuction format invalid. "
+        "Symbol '...' not last symbol.");
+    }
+
+    // take the current sym being the last before a '...'
+    // and bind it to an empty qexpr
+    lval* sym = lval_pop(f->formals, 0);
+    lval* val = lval_qexpr();
+    lenv_put(f->env, sym, val);
+
+    // delete remaining ...
+    lval_delete(lval_pop(f->formals, 0));
+    // delete temporary vars
+    lval_delete(sym); lval_delete(val);
+  }
 
   // do we have all needed args?
   if (f->formals->count == 0) {
