@@ -2,12 +2,13 @@
 #include <stdlib.h>
 #include "lang.h"
 
+// Support windows minimally
 #ifdef _WIN32
 #include <string.h>
 
 static char buffer[2048];
 
-/* simple readline for windows compat */
+// simple readline for windows compat
 char* readline(char* prompt) {
   fputs(prompt, stdout);
   fgets(buffer, 2048, stdin);
@@ -17,7 +18,7 @@ char* readline(char* prompt) {
   return cpy;
 }
 
-/* face add_history that's a noop */
+// fake add_history that's a noop
 void add_history(char* unused) {}
 
 #else

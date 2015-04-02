@@ -1,14 +1,24 @@
-.PHONY: all build debug clean
+CC = gcc
+CFLAGS = -g -Wall -std=c99
+LIBS = -lm -ledit
+TARGET = repl
 
-all: build
+.PHONY: default all clean
 
-build:
-	cc -std=c99 -Wall repl.c mpc.c lang.c -ledit -lm -o repl
+default: $(TARGET)
+all: default
 
-debug: build
-	cc -std=c99 -g -ggdb -Wall repl.c mpc.c lang.c -ledit -lm -o repl
-	lldb repl
+OBJECTS = $(patsubst %.c, %.o, $(wildcard *.c))
+HEADERS = $(wildcard *.h)
+
+%.o: %.c $(HEADERS)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+.PRECIOUS: $(TARGET) $(OBJECTS)
+
+$(TARGET): $(OBJECTS)
+	$(CC) $(OBJECTS) -Wall $(LIBS) -o $@
 
 clean:
-	rm repl || exit 0
-	rm -r repl.dSYM/ || exit 0
+	-rm -f *.o
+	-rm -f $(TARGET)
