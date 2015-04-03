@@ -1,101 +1,15 @@
-; Open new scope
-(defn '(let b) {
-  ((\ {_} b) ())
-})
-
-; Unpack List to Function
-(fun {unpack f l} {
-  eval (join (list f) l)
-})
-
-; Unapply List to Function
-(fun {pack f & xs} {f xs})
-
-; Curried and Uncurried calling
-(def {curry} unpack)
-(def {uncurry} pack)
-
-; Perform Several things in Sequence
-(fun {do & l} {
-  if (== l nil)
-    {nil}
-    {last l}
-})
-
-;;; Logical Functions
-
-; Logical Functions
-(fun {not x}   {- 1 x})
-(fun {or x y}  {+ x y})
-(fun {and x y} {* x y})
 
 
-;;; Numeric Functions
-
-; Minimum of Arguments
-(fun {min & xs} {
-  if (== (tail xs) nil) {fst xs}
-    {do 
-      (= {rest} (unpack min (tail xs)))
-      (= {item} (fst xs))
-      (if (< item rest) {item} {rest})
-    }
-})
-
-; Maximum of Arguments
-(fun {max & xs} {
-  if (== (tail xs) nil) {fst xs}
-    {do 
-      (= {rest} (unpack max (tail xs)))
-      (= {item} (fst xs))
-      (if (> item rest) {item} {rest})
-    }  
-})
-
-;;; Conditional Functions
-
-(fun {select & cs} {
-  if (== cs nil)
-    {error "No Selection Found"}
-    {if (fst (fst cs)) {snd (fst cs)} {unpack select (tail cs)}}
-})
-
-(fun {case x & cs} {
-  if (== cs nil)
-    {error "No Case Found"}
-    {if (== x (fst (fst cs))) {snd (fst cs)} {
-    unpack case (join (list x) (tail cs))}}
-})
-
-(def {otherwise} true)
 
 
-;;; Misc Functions
 
-(fun {flip f a b} {f b a})
-(fun {ghost & xs} {eval xs})
-(fun {comp f g x} {f (g x)})
 
-;;; List Functions
 
-; First, Second, or Third Item in List
-(fun {fst l} { eval (head l) })
-(fun {snd l} { eval (head (tail l)) })
-(fun {trd l} { eval (head (tail (tail l))) })
 
-; List Length
-(fun {len l} {
-  if (== l nil)
-    {0}
-    {+ 1 (len (tail l))}
-})
 
-; Nth item in List
-(fun {nth n l} {
-  if (== n 0)
-    {fst l}
-    {nth (- n 1) (tail l)}
-})
+
+
+
 
 ; Last item in List
 (fun {last l} {nth (- (len l) 1) l})

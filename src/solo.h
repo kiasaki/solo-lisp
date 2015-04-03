@@ -126,7 +126,8 @@ lval* lval_call(lenv*, lval*, lval*);
 // other
 char* ltype_name(int t);
 
-void lval_expr_print(lval*, char, char);
+void lval_print_str(lval*);
+void lval_print_expr(lval*);
 void lval_print(lval*);
 void lval_println(lval*);
 

@@ -265,8 +265,12 @@ lval* builtin_load(lenv* e, lval* v) {
 
 lval* builtin_print(lenv* e, lval* v) {
   // Print each argument followed by a space
-  for (int i = 0; i < v->count; i++) {
-    lval_print(v->cell[i]); putchar(' ');
+  if (v->count) {
+    for (int i = 0; i < v->count; i++) {
+      lval_print(v->cell[i]); putchar(' ');
+    }
+  } else {
+    lval_print(v);
   }
 
   // Print a newline and delete arguments

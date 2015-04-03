@@ -30,18 +30,28 @@ lval* lval_read(mpc_ast_t* t) {
   if (strstr(t->tag, "string")) { return lval_read_string(t); }
   if (strstr(t->tag, "symbol")) { return lval_sym(t->contents); }
 
-  // handle root (>) or sexpr
+  // handle root (>) or sexpr or qexpr
   lval* x = NULL;
   if (strcmp(t->tag, ">") == 0) { x = lval_sexpr(); }
   if (strstr(t->tag, "sexpr"))  { x = lval_sexpr(); }
-  if (strstr(t->tag, "qexpr"))  { x = lval_qexpr(); }
+
+  if (strstr(t->tag, "qexpr"))  {
+    // a qexpr is always 2 childs (quote and the item after)
+    // if item after is a list we want to pop it
+    x = lval_qexpr();
+    // 0 is "'", 1 is what is after
+    // if it's a sexpr, lower ourselves 1 level
+    if (strstr(t->children[1]->tag, "sexpr")) {
+      t = t->children[1];
+    }
+  }
 
   for (int i = 0; i < t->children_num; i++) {
     if (strcmp(t->children[i]->contents, "(") == 0) { continue; }
     if (strcmp(t->children[i]->contents, ")") == 0) { continue; }
     if (strcmp(t->children[i]->contents, "'") == 0) { continue; }
     if (strcmp(t->children[i]->tag,  "regex") == 0) { continue; }
-    if (strcmp(t->children[i]->tag,  "comment") == 0) { continue; }
+    if (strstr(t->children[i]->tag,  "comment")) { continue; }
     x = lval_add(x, lval_read(t->children[i]));
   }
 
@@ -59,11 +69,11 @@ void parser_setup(void) {
   Lang    = mpc_new("lang");
 
   mpca_lang(MPCA_LANG_DEFAULT,
-    "                                                       \
+    "                                                        \
       number  : /-?[0-9]+/ ;                                 \
       symbol  : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+|\\.\\.\\./ ; \
-      string  : /\"(\\\\.|[^\"])*\"/ ;                      \
-      comment : /;[^\\r\\n]*/ ;                             \
+      string  : /\"(\\\\.|[^\"])*\"/ ;                       \
+      comment : /;[^\\r\\n]*/ ;                              \
       sexpr   : '(' <expr>* ')' ;                            \
       qexpr   : '\'' <expr> ;                                \
       expr    : <number> | <symbol> | <comment>              \

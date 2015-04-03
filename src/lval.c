@@ -18,6 +18,15 @@ lval* lval_str(char* s) {
   return v;
 }
 
+// Construct a pointer to a symbol
+lval* lval_sym(char* m) {
+  lval* v = malloc(sizeof(lval));
+  v->type = LVAL_SYM;
+  v->sym = malloc(strlen(m) + 1);
+  strcpy(v->sym, m);
+  return v;
+}
+
 // Construct a pointer to an error
 lval* lval_err(char* fmt, ...) {
   lval* v = malloc(sizeof(lval));
@@ -33,15 +42,6 @@ lval* lval_err(char* fmt, ...) {
   // realloc to take only the bytes we need
   v->err = realloc(v->err, strlen(v->err)+1);
   va_end(va);
-  return v;
-}
-
-// Construct a pointer to a symbol
-lval* lval_sym(char* m) {
-  lval* v = malloc(sizeof(lval));
-  v->type = LVAL_SYM;
-  v->sym = malloc(strlen(m) + 1);
-  strcpy(v->sym, m);
   return v;
 }
 
@@ -121,7 +121,12 @@ lval* lval_copy(lval* v) {
 
     case LVAL_SYM:
       x->sym = malloc(strlen(v->sym) + 1);
-      strcpy(x->sym, v->sym); break;
+      strcpy(x->sym, v->sym);
+    break;
+    case LVAL_STR:
+      x->str = malloc(strlen(v->str) + 1);
+      strcpy(x->str, v->str);
+    break;
 
     case LVAL_SEXPR:
     case LVAL_QEXPR:
