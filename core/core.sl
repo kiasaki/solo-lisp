@@ -1,16 +1,15 @@
-; Simple definition of functions
-; def {add} (\ {x y} {+ x y}) -> fun {add x y} {+ x y}
-def {fun} (\ {args body} {def (head args) (\ (tail args) body)})
+;;;
+;;;   Solo Standard Prelude
+;;;
 
-; Prepends an atom to a list
-fun {cons a l} {join (list a) l}
+;;; Atoms
+(def 'nil '())
+(def 'true 1)
+(def 'false 0)
 
-; Calls a function with a list of params instead of params individually
-; (func-to-call x y z) -> ((unpack func-to-call) (x y z))
-fun {unpack f xs} {eval (join (list f) xs)}
-def {curry} unpack
+;;; Functional Functions
 
-; Call a function expecting a list with individually passed in params
-; (func-to-call (x y z)) -> ((pack func-to-call) x y z)
-fun {pack f xs...} {f xs}
-def {uncurry} pack
+; Function Definitions
+(def 'defn (fn '(f b) '(
+  def (head f) (fn (tail f) b)
+)))

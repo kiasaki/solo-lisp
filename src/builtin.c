@@ -113,8 +113,8 @@ lval* builtin_def(lenv* e, lval* a) {
   return builtin_var(e, a, "def");
 }
 
-lval* builtin_let(lenv* e, lval* a) {
-  return builtin_var(e, a, "let");
+lval* builtin_put(lenv* e, lval* a) {
+  return builtin_var(e, a, "put");
 }
 
 lval* builtin_var(lenv* e, lval* v, char* func) {
@@ -134,11 +134,11 @@ lval* builtin_var(lenv* e, lval* v, char* func) {
     "Got %i, Expected %i.", func, syms->count, v->count-1);
 
   for (int i = 0; i < syms->count; i++) {
-    // def -> global, = (put) -> local
+    // def -> global, put -> local env
     if (strcmp(func, "def") == 0) {
       lenv_def(e, syms->cell[i], v->cell[i+1]);
     }
-    if (strcmp(func, "let") == 0) {
+    if (strcmp(func, "put") == 0) {
       lenv_put(e, syms->cell[i], v->cell[i+1]);
     }
   }

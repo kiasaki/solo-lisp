@@ -14,6 +14,9 @@ mpc_parser_t* Qexpr;
 mpc_parser_t* Expr;
 mpc_parser_t* Lang;
 
+void parser_setup(void);
+void parser_free(void);
+
 #define LASSERT(args, cond, fmt, ...) \
     if (!(cond)) { \
       lval* err = lval_err(fmt, ##__VA_ARGS__); \
@@ -138,7 +141,7 @@ lval* builtin_join(lenv*, lval*);
 
 lval* builtin_var(lenv*, lval*, char*);
 lval* builtin_def(lenv*, lval*);
-lval* builtin_let(lenv*, lval*);
+lval* builtin_put(lenv*, lval*);
 lval* builtin_lambda(lenv*, lval*);
 
 lval* builtin_if(lenv*, lval*);

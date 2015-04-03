@@ -27,6 +27,7 @@ void add_history(char* unused) {}
 
 int main(int argc, char** argv) {
   // start a clean env, load builtins
+  parser_setup();
   lenv* e = lenv_new();
   lenv_add_builtins(e);
 
@@ -62,5 +63,6 @@ int main(int argc, char** argv) {
   }
 
   lenv_delete(e);
+  parser_free();
   return 0;
 }

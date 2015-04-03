@@ -39,8 +39,7 @@ lval* lval_read(mpc_ast_t* t) {
   for (int i = 0; i < t->children_num; i++) {
     if (strcmp(t->children[i]->contents, "(") == 0) { continue; }
     if (strcmp(t->children[i]->contents, ")") == 0) { continue; }
-    if (strcmp(t->children[i]->contents, "{") == 0) { continue; }
-    if (strcmp(t->children[i]->contents, "}") == 0) { continue; }
+    if (strcmp(t->children[i]->contents, "'") == 0) { continue; }
     if (strcmp(t->children[i]->tag,  "regex") == 0) { continue; }
     if (strcmp(t->children[i]->tag,  "comment") == 0) { continue; }
     x = lval_add(x, lval_read(t->children[i]));
@@ -49,30 +48,36 @@ lval* lval_read(mpc_ast_t* t) {
   return x;
 }
 
-lval* lval_read_str(char* input) {
-  mpc_parser_t* Number   = mpc_new("number");
-  mpc_parser_t* Symbol   = mpc_new("symbol");
-  mpc_parser_t* String   = mpc_new("string");
-  mpc_parser_t* Comment  = mpc_new("comment");
-  mpc_parser_t* Sexpr    = mpc_new("sexpr");
-  mpc_parser_t* Qexpr    = mpc_new("qexpr");
-  mpc_parser_t* Expr     = mpc_new("expr");
-  mpc_parser_t* Lang     = mpc_new("lang");
+void parser_setup(void) {
+  Number  = mpc_new("number");
+  Symbol  = mpc_new("symbol");
+  String  = mpc_new("string");
+  Comment = mpc_new("comment");
+  Sexpr   = mpc_new("sexpr");
+  Qexpr   = mpc_new("qexpr");
+  Expr    = mpc_new("expr");
+  Lang    = mpc_new("lang");
 
   mpca_lang(MPCA_LANG_DEFAULT,
-      "                                                       \
-        number  : /-?[0-9]+/ ;                                 \
-        symbol  : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+|\\.\\.\\./ ; \
-        string  : /\"(\\\\.|[^\"])*\"/ ;                      \
-        comment : /;[^\\r\\n]*/ ;                             \
-        sexpr   : '(' <expr>* ')' ;                            \
-        qexpr   : '\'' <expr> ;                                \
-        expr    : <number> | <symbol> | <comment>              \
-                | <string> | <sexpr>  | <qexpr> ;              \
-        lang    : /^/ <expr>* /$/ ;                            \
-      ",
-      Number, Symbol, String, Comment, Sexpr, Qexpr, Expr, Lang);
+    "                                                       \
+      number  : /-?[0-9]+/ ;                                 \
+      symbol  : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+|\\.\\.\\./ ; \
+      string  : /\"(\\\\.|[^\"])*\"/ ;                      \
+      comment : /;[^\\r\\n]*/ ;                             \
+      sexpr   : '(' <expr>* ')' ;                            \
+      qexpr   : '\'' <expr> ;                                \
+      expr    : <number> | <symbol> | <comment>              \
+              | <string> | <sexpr>  | <qexpr> ;              \
+      lang    : /^/ <expr>* /$/ ;                            \
+    ",
+    Number, Symbol, String, Comment, Sexpr, Qexpr, Expr, Lang);
+}
 
+void parser_free(void) {
+  mpc_cleanup(8, Number, Symbol, String, Comment, Sexpr, Qexpr, Expr, Lang);
+}
+
+lval* lval_read_str(char* input) {
   mpc_result_t r;
   lval* v;
 
@@ -85,8 +90,6 @@ lval* lval_read_str(char* input) {
     mpc_err_delete(r.error);
     free(mess);
   }
-
-  mpc_cleanup(8, Number, Symbol, String, Comment, Sexpr, Qexpr, Expr, Lang);
 
   return v;
 }

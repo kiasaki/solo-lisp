@@ -102,7 +102,7 @@ void lenv_add_builtins(lenv* e) {
 
   // variables
   lenv_add_builtin(e, "def", builtin_def);
-  lenv_add_builtin(e, "let", builtin_let);
+  lenv_add_builtin(e, "put", builtin_put);
   lenv_add_builtin(e, "fn",  builtin_lambda);
 
   // comparison
