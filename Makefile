@@ -1,15 +1,17 @@
 CC = gcc
-CFLAGS = -g -Wall -std=c99
+CFLAGS = -std=c99 -Wall -g -Ilib
 LIBS = -lm -ledit
-TARGET = repl
+TARGET = solo
 
 .PHONY: default all clean
 
 default: $(TARGET)
 all: default
 
-OBJECTS = $(patsubst %.c, %.o, $(wildcard *.c))
-HEADERS = $(wildcard *.h)
+OBJECTS = $(patsubst %.c, %.o, $(wildcard lib/*.c))
+OBJECTS += $(patsubst %.c, %.o, $(wildcard src/*.c))
+HEADERS = $(wildcard lib/*.h)
+HEADERS += $(wildcard src/*.h)
 
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@

@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "lang.h"
+#include "solo.h"
 
 lval* lval_eval(lenv* e, lval* v) {
   if (v->type == LVAL_SYM) {

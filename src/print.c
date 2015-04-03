@@ -1,5 +1,19 @@
 #include <stdlib.h>
-#include "lang.h"
+#include "solo.h"
+
+// type name for errors
+char* ltype_name(int t) {
+  switch(t) {
+    case LVAL_FUN: return "function";
+    case LVAL_NUM: return "number";
+    case LVAL_STR: return "string";
+    case LVAL_ERR: return "error";
+    case LVAL_SYM: return "symbol";
+    case LVAL_SEXPR: return "s-expr";
+    case LVAL_QEXPR: return "q-expr";
+    default: return "unknown";
+  }
+}
 
 void lval_expr_print(lval* v, char open, char close) {
   putchar(open);

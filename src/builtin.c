@@ -1,5 +1,6 @@
 #include <stdlib.h>
-#include "lang.h"
+#include "mpc.h"
+#include "solo.h"
 
 lval* builtin_op(lenv* e, lval* a, char* op) {
   // ensure all elems left are numbers
@@ -112,8 +113,8 @@ lval* builtin_def(lenv* e, lval* a) {
   return builtin_var(e, a, "def");
 }
 
-lval* builtin_put(lenv* e, lval* a) {
-  return builtin_var(e, a, "=");
+lval* builtin_let(lenv* e, lval* a) {
+  return builtin_var(e, a, "let");
 }
 
 lval* builtin_var(lenv* e, lval* v, char* func) {
@@ -137,7 +138,7 @@ lval* builtin_var(lenv* e, lval* v, char* func) {
     if (strcmp(func, "def") == 0) {
       lenv_def(e, syms->cell[i], v->cell[i+1]);
     }
-    if (strcmp(func, "=") == 0) {
+    if (strcmp(func, "let") == 0) {
       lenv_put(e, syms->cell[i], v->cell[i+1]);
     }
   }
@@ -147,9 +148,9 @@ lval* builtin_var(lenv* e, lval* v, char* func) {
 }
 
 lval* builtin_lambda(lenv* e, lval* v) {
-  LASSERT_NUM("\\", v, 2);
-  LASSERT_TYPE("\\", v, 0, LVAL_QEXPR);
-  LASSERT_TYPE("\\", v, 1, LVAL_QEXPR);
+  LASSERT_NUM("fn", v, 2);
+  LASSERT_TYPE("fn", v, 0, LVAL_QEXPR);
+  LASSERT_TYPE("fn", v, 1, LVAL_QEXPR);
 
   // check that first qexpr contains only syms
   for (int i = 0; i < v->cell[0]->count; i++) {
@@ -164,4 +165,134 @@ lval* builtin_lambda(lenv* e, lval* v) {
   lval_delete(v);
 
   return lval_lambda(formals, body);
+}
+
+// comparison
+lval* builtin_ord(lenv* e, lval* v, char* op) {
+  LASSERT_NUM(op, v, 2);
+  LASSERT_TYPE(op, v, 0, LVAL_NUM);
+  LASSERT_TYPE(op, v, 1, LVAL_NUM);
+
+  int r;
+  if (strcmp(op, ">")  == 0) { r = (v->cell[0]->num >  v->cell[1]->num); }
+  if (strcmp(op, "<")  == 0) { r = (v->cell[0]->num <  v->cell[1]->num); }
+  if (strcmp(op, ">=") == 0) { r = (v->cell[0]->num >= v->cell[1]->num); }
+  if (strcmp(op, "<=") == 0) { r = (v->cell[0]->num <= v->cell[1]->num); }
+  lval_delete(v);
+  return lval_num(r);
+}
+
+lval* builtin_gt(lenv* e, lval* v) { return builtin_ord(e, v, ">");  }
+lval* builtin_lt(lenv* e, lval* v) { return builtin_ord(e, v, "<");  }
+lval* builtin_ge(lenv* e, lval* v) { return builtin_ord(e, v, ">="); }
+lval* builtin_le(lenv* e, lval* v) { return builtin_ord(e, v, "<="); }
+
+lval* builtin_cmp(lenv* e, lval* v, char* op) {
+  LASSERT_NUM(op, v, 2);
+  int r;
+  if (strcmp(op, "==") == 0) { r =  lval_eq(v->cell[0], v->cell[1]); }
+  if (strcmp(op, "!=") == 0) { r = !lval_eq(v->cell[0], v->cell[1]); }
+  lval_delete(v);
+  return lval_num(r);
+}
+
+lval* builtin_eq(lenv* e, lval* a) { return builtin_cmp(e, a, "=="); }
+lval* builtin_ne(lenv* e, lval* a) { return builtin_cmp(e, a, "!="); }
+
+lval* builtin_if(lenv* e, lval* a) {
+  LASSERT_NUM("if", a, 3);
+  LASSERT_TYPE("if", a, 0, LVAL_NUM);
+  LASSERT_TYPE("if", a, 1, LVAL_QEXPR);
+  LASSERT_TYPE("if", a, 2, LVAL_QEXPR);
+
+  lval* x;
+  a->cell[1]->type = LVAL_SEXPR;
+  a->cell[2]->type = LVAL_SEXPR;
+
+  if (a->cell[0]->num) {
+    x = lval_eval(e, lval_pop(a, 1));
+  } else {
+    x = lval_eval(e, lval_pop(a, 2));
+  }
+
+  lval_delete(a);
+  return x;
+}
+
+// misc
+lval* builtin_load(lenv* e, lval* v) {
+  LASSERT_NUM("load", v, 1);
+  LASSERT_TYPE("load", v, 0, LVAL_STR);
+
+  // parse file given by string name
+  mpc_result_t r;
+  if (mpc_parse_contents(v->cell[0]->str, Lang, &r)) {
+
+    // read contents
+    lval* expr = lval_read(r.output);
+    mpc_ast_delete(r.output);
+
+    // evaluate each expression
+    while (expr->count) {
+      lval* x = lval_eval(e, lval_pop(expr, 0));
+      // if evaluation leads to error return it
+      if (x->type == LVAL_ERR) {
+        lval_delete(expr);
+        lval_delete(v);
+        return x;
+      }
+      lval_delete(x);
+    }
+
+    // delete expressions and arguments
+    lval_delete(expr);
+    lval_delete(v);
+
+    return lval_sexpr();
+  } else {
+    // get parse error as string
+    char* err_msg = mpc_err_string(r.error);
+    mpc_err_delete(r.error);
+
+    // create new error message using it
+    lval* err = lval_err("Could not load Library %s", err_msg);
+    free(err_msg);
+    lval_delete(v);
+
+    return err;
+  }
+}
+
+lval* builtin_print(lenv* e, lval* v) {
+  // Print each argument followed by a space
+  for (int i = 0; i < v->count; i++) {
+    lval_print(v->cell[i]); putchar(' ');
+  }
+
+  // Print a newline and delete arguments
+  putchar('\n');
+  lval_delete(v);
+
+  return lval_sexpr();
+}
+
+lval* builtin_error(lenv* e, lval* v) {
+  LASSERT_NUM("error", v, 1);
+  LASSERT_TYPE("error", v, 0, LVAL_STR);
+
+  // construct error from first argument
+  lval* err = lval_err(v->cell[0]->str);
+
+  // Delete arguments and return
+  lval_delete(v);
+  return err;
+}
+
+lval* builtin_type(lenv* e, lval* v) {
+  LASSERT_NUM("error", v, 1);
+
+  lval* str = lval_str(ltype_name(v->cell[0]->type));
+
+  lval_delete(v);
+  return str;
 }

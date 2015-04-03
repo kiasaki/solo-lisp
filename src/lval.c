@@ -1,11 +1,20 @@
 #include <stdlib.h>
-#include "lang.h"
+#include "solo.h"
 
 // Construct a pointer to a number
 lval* lval_num(long x) {
   lval* v = malloc(sizeof(lval));
   v->type = LVAL_NUM;
   v->num = x;
+  return v;
+}
+
+// Construct a pointer to a string
+lval* lval_str(char* s) {
+  lval* v = malloc(sizeof(lval));
+  v->type = LVAL_STR;
+  v->str = malloc(strlen(s) + 1);
+  strcpy(v->str, s);
   return v;
 }
 
@@ -144,6 +153,7 @@ void lval_delete(lval* v) {
     // For err and sym free the string data
     case LVAL_ERR: free(v->err); break;
     case LVAL_SYM: free(v->sym); break;
+    case LVAL_STR: free(v->str); break;
 
     // in a sexpr's case we need to recursively free lvals
     case LVAL_SEXPR:
@@ -270,4 +280,31 @@ lval* lval_call(lenv* e, lval* f, lval* v) {
     // otherwise, return partially applied function
     return lval_copy(f);
   }
+}
+
+int lval_eq(lval* x, lval* y) {
+  if (x->type != y->type) { return 0; }
+
+  switch (x->type) {
+    case LVAL_NUM: return (x->num == y->num);
+    case LVAL_ERR: return (strcmp(x->err, y->err) == 0);
+    case LVAL_SYM: return (strcmp(x->sym, y->sym) == 0);
+    case LVAL_STR: return (strcmp(x->str, y->str) == 0);
+    case LVAL_FUN:
+      if (x->builtin || y->builtin) {
+        return x->builtin == y->builtin;
+      } else {
+        return lval_eq(x->formals, y->formals) && lval_eq(x->body, y->body);
+      }
+    case LVAL_QEXPR:
+    case LVAL_SEXPR:
+      if (x->count != y->count) { return 0; }
+      for (int i = 0; i < x->count; i++) {
+        if (!lval_eq(x->cell[i], y->cell[i])) { return 0; }
+      }
+      return 1;
+    break;
+  }
+
+  return 0;
 }
