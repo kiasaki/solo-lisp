@@ -1,5 +1,7 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include "mpc.h"
+#include "read.h"
 
 mpc_parser_t* Number;
 mpc_parser_t* Decimal;
@@ -8,6 +10,7 @@ mpc_parser_t* String;
 mpc_parser_t* Comment;
 mpc_parser_t* Sexpr;
 mpc_parser_t* Qexpr;
+mpc_parser_t* Qqexpr;
 mpc_parser_t* Expr;
 mpc_parser_t* Lang;
 
@@ -34,11 +37,19 @@ AST* ast_dec(double d) {
   return a;
 }
 
+AST* ast_list(int type) {
+  AST* a = malloc(sizeof(AST));
+  a->type = type;
+  a->count = 0;
+  a->cells = NULL;
+  return a;
+}
+
 // operations
 AST* ast_add(AST* a, AST* d) {
   a->count++;
-  a->cell = realloc(a->cells, sizeof(AST*) * a->count);
-  a->cell[a->count-1] = d;
+  a->cells = realloc(a->cells, sizeof(AST*) * a->count);
+  a->cells[a->count-1] = d;
   return a;
 }
 
@@ -48,11 +59,51 @@ AST* read_tree(mpc_ast_t* t) {
   if (strstr(t->tag, "symbol")) { return ast_str(AST_SYM, t->contents); }
   if (strstr(t->tag, "string")) { return mpcv_as_string(t); }
 
-  return d;
+  // other types can only be a list
+  int write_to_first_cell = false;
+  AST* result = ast_list(AST_SEXPR);
+
+  // is ' or ` was encountered, prepend coresponding quoting fn
+  if (strstr(t->tag, "qexpr"))  {
+    result = ast_add(result, ast_str(AST_SYM, "quote"));
+    if (t->children_num > 1) {
+      result = ast_add(result, ast_list(AST_SEXPR));
+      write_to_first_cell = true;
+    }
+  }
+  if (strstr(t->tag, "qqexpr"))  {
+    result = ast_add(result, ast_str(AST_SYM, "quasiquote"));
+    if (t->children_num > 1) {
+      result = ast_add(result, ast_list(AST_SEXPR));
+      write_to_first_cell = true;
+    }
+  }
+
+  // loop in childrens, only append actual datums
+  for (int i = 0; i < t->children_num; i++) {
+    if (
+      strstr(t->children[i]->tag, "number")
+      || strstr(t->children[i]->tag, "decimal")
+      || strstr(t->children[i]->tag, "symbol")
+      || strstr(t->children[i]->tag, "string")
+      || strstr(t->children[i]->tag, "sexpr")
+      || strstr(t->children[i]->tag, "qexpr")
+      || strstr(t->children[i]->tag, "qqexpr")
+    ) {
+      if (write_to_first_cell) {
+        result->cells[1] = ast_add(result->cells[1],
+          read_tree(t->children[i]));
+      } else {
+        result = ast_add(result, read_tree(t->children[i]));
+      }
+    }
+  }
+
+  return result;
 }
 
 AST* read_str(char* input) {
-  AST result;
+  AST* result;
   mpc_result_t r;
 
   if (mpc_parse("<stdin>", input, Lang, &r)) {

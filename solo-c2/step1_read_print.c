@@ -20,6 +20,7 @@ void print(AST* _) {
 void rep(void) {
   char* line;
   line = readline("user> ");
+  add_history(line);
 
   print(eval(read(line)));
 
