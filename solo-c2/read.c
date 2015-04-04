@@ -11,6 +11,10 @@ mpc_parser_t* Comment;
 mpc_parser_t* Sexpr;
 mpc_parser_t* Qexpr;
 mpc_parser_t* Qqexpr;
+mpc_parser_t* Uqexpr;
+mpc_parser_t* Sqexpr;
+mpc_parser_t* Drexpr;
+mpc_parser_t* Wmexpr;
 mpc_parser_t* Expr;
 mpc_parser_t* Lang;
 
@@ -54,29 +58,33 @@ AST* ast_add(AST* a, AST* d) {
 }
 
 AST* read_tree(mpc_ast_t* t) {
+  // atoms
   if (strstr(t->tag, "number")) { return mpcv_as_long(t); }
   if (strstr(t->tag, "decimal")) { return mpcv_as_double(t); }
   if (strstr(t->tag, "symbol")) { return ast_str(AST_SYM, t->contents); }
   if (strstr(t->tag, "string")) { return mpcv_as_string(t); }
 
   // other types can only be a list
-  int write_to_first_cell = false;
-  AST* result = ast_list(AST_SEXPR);
+  AST* result = NULL;
+  if (strcmp(t->tag, ">") == 0) {
+    result = ast_list(AST_ROOT);
+  } else {
+    result = ast_list(AST_SEXPR);
+  }
 
   // is ' or ` was encountered, prepend coresponding quoting fn
-  if (strstr(t->tag, "qexpr"))  {
-    result = ast_add(result, ast_str(AST_SYM, "quote"));
-    if (t->children_num > 1) {
-      result = ast_add(result, ast_list(AST_SEXPR));
-      write_to_first_cell = true;
-    }
-  }
-  if (strstr(t->tag, "qqexpr"))  {
+  if (strstr(t->tag, "sqexpr"))  {
+    result = ast_add(result, ast_str(AST_SYM, "splice-unquote"));
+  } else if (strstr(t->tag, "uqexpr"))  {
+    result = ast_add(result, ast_str(AST_SYM, "unquote"));
+  } else if (strstr(t->tag, "drexpr"))  {
+    result = ast_add(result, ast_str(AST_SYM, "deref"));
+  } else if (strstr(t->tag, "wmexpr"))  {
+    result = ast_add(result, ast_str(AST_SYM, "with-meta"));
+  } else if (strstr(t->tag, "qqexpr"))  {
     result = ast_add(result, ast_str(AST_SYM, "quasiquote"));
-    if (t->children_num > 1) {
-      result = ast_add(result, ast_list(AST_SEXPR));
-      write_to_first_cell = true;
-    }
+  } else if (strstr(t->tag, "qexpr"))  {
+    result = ast_add(result, ast_str(AST_SYM, "quote"));
   }
 
   // loop in childrens, only append actual datums
@@ -89,13 +97,12 @@ AST* read_tree(mpc_ast_t* t) {
       || strstr(t->children[i]->tag, "sexpr")
       || strstr(t->children[i]->tag, "qexpr")
       || strstr(t->children[i]->tag, "qqexpr")
+      || strstr(t->children[i]->tag, "uqexpr")
+      || strstr(t->children[i]->tag, "sqexpr")
+      || strstr(t->children[i]->tag, "wmexpr")
+      || strstr(t->children[i]->tag, "drexpr")
     ) {
-      if (write_to_first_cell) {
-        result->cells[1] = ast_add(result->cells[1],
-          read_tree(t->children[i]));
-      } else {
-        result = ast_add(result, read_tree(t->children[i]));
-      }
+      result = ast_add(result, read_tree(t->children[i]));
     }
   }
 
@@ -107,7 +114,7 @@ AST* read_str(char* input) {
   mpc_result_t r;
 
   if (mpc_parse("<stdin>", input, Lang, &r)) {
-    mpc_ast_print(r.output);
+    // debug mpc_ast_print(r.output);
     result = read_tree(r.output);
     mpc_ast_delete(r.output);
   } else {
@@ -129,31 +136,67 @@ void reader_setup() {
   Sexpr   = mpc_new("sexpr");
   Qexpr   = mpc_new("qexpr");
   Qqexpr  = mpc_new("qqexpr");
+  Uqexpr  = mpc_new("uqexpr");
+  Sqexpr  = mpc_new("sqexpr");
+  Drexpr  = mpc_new("drexpr");
+  Wmexpr  = mpc_new("wmexpr");
   Expr    = mpc_new("expr");
   Lang    = mpc_new("lang");
 
   mpca_lang(MPCA_LANG_DEFAULT,
-    "                                              \
-      number  : /-?[0-9]+/ ;                       \
-      decimal : /-?[0-9]+\\.[0-9]+/ ;              \
-      symbol  : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+/ ; \
-      string  : /\"(\\\\.|[^\"])*\"/ ;             \
-      comment : /;[^\\r\\n]*/ ;                    \
-      sexpr   : '(' <expr>* ')'                    \
-              | '{' <expr>* '}'                    \
-              | '[' <expr>* ']' ;                  \
-      qexpr   : '\'' <expr> ;                      \
-      qqexpr  : '`' <expr> ;                       \
-      expr    : <number> | <double> | <symbol>     \
-              | <string> | <sexpr>  | <qexpr>      \
-              | <qqexpr> | <comment> ;             \
-      lang    : /^/ <expr>* /$/ ;                  \
-    ",
-    Number, Decimal, Symbol, String, Comment, Sexpr, Qexpr, Qqexpr, Expr, Lang);
+    "  number  : /-?[0-9]+/ ;                       \n"
+    "  decimal : /-?[0-9]+\\.[0-9]+/ ;              \n"
+    "  symbol  : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&:]+/ ;\n"
+    "  string  : /\"(\\\\.|[^\"])*\"/ ;             \n"
+    "  comment : /;[^\\r\\n]*/ ;                    \n"
+    "  sexpr   : '(' <expr>* ')'                    \n"
+    "          | '{' <expr>* '}'                    \n"
+    "          | '[' <expr>* ']' ;                  \n"
+    "  qexpr   : '\'' <expr> ;                      \n"
+    "  qqexpr  : '`' <expr> ;                       \n"
+    "  sqexpr  : '~' '@' <expr> ;                   \n"
+    "  uqexpr  : '~' <expr> ;                       \n"
+    "  drexpr  : '@' <expr> ;                       \n"
+    "  wmexpr  : '^' <expr> ;                       \n"
+    "  expr    : <number> | <decimal> | <symbol>    \n"
+    "          | <string> | <sexpr>   | <qexpr>     \n"
+    "          | <qqexpr> | <sqexpr>  | <uqexpr>   \n"
+    "          | <drexpr> | <wmexpr>  | <comment> ; \n"
+    "  lang    : /^/ <expr>* /$/ ;                  \n",
+    Number,
+    Decimal,
+    Symbol,
+    String,
+    Comment,
+    Sexpr,
+    Qexpr,
+    Qqexpr,
+    Uqexpr,
+    Sqexpr,
+    Drexpr,
+    Wmexpr,
+    Expr,
+    Lang
+  );
 }
 
 void reader_free(void) {
-  mpc_cleanup(10, Number, Decimal, Symbol, String, Comment, Sexpr, Qexpr, Qqexpr, Expr, Lang);
+  mpc_cleanup(14,
+    Number,
+    Decimal,
+    Symbol,
+    String,
+    Comment,
+    Sexpr,
+    Qexpr,
+    Qqexpr,
+    Uqexpr,
+    Sqexpr,
+    Drexpr,
+    Wmexpr,
+    Expr,
+    Lang
+  );
 }
 
 AST* mpcv_as_long(mpc_ast_t* t) {

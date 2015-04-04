@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "readline.h"
 #include "read.h"
+#include "print.h"
 
 AST* read(char* line) {
   AST* datum;
@@ -13,8 +14,11 @@ AST* eval(AST* datum) {
   return datum;
 }
 
-void print(AST* _) {
-  printf("%s\n", "!");
+void print(AST* d) {
+  int success = 0;
+  printf("%s\n", ast_print(d, &success));
+  // TODO call destructor for AST
+  free(d);
 }
 
 void rep(void) {

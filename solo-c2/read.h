@@ -6,8 +6,8 @@ void reader_setup(void);
 void reader_free(void);
 
 enum {
-  AST_ERR, AST_NUM, AST_DEC, AST_SYM, AST_FUN,
-  AST_STR, AST_SEXPR
+  AST_ROOT, AST_ERR, AST_NUM, AST_DEC,
+  AST_SYM, AST_STR, AST_SEXPR, AST_FUN
 };
 
 struct AST;
