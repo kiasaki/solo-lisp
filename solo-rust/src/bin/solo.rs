@@ -341,12 +341,8 @@ fn main() {
     // see eval() for definition of "eval"
     env_set(&repl_env, symbol("*ARGV*"), list(vec![]));
 
-    // core.sl: defined using the language itself
-    let _ = rep("(def! *host-language* \"rust\")", repl_env.clone());
-    let _ = rep("(def! not (fn* (a) (if a false true)))", repl_env.clone());
+    // load-file defined using the language itself
     let _ = rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))", repl_env.clone());
-    let _ = rep("(defmacro! cond (fn* (& xs) (if (> (count xs) 0) (list 'if (first xs) (if (> (count xs) 1) (nth xs 1) (throw \"odd number of forms to cond\")) (cons 'cond (rest (rest xs)))))))", repl_env.clone());
-    let _ = rep("(defmacro! or (fn* (& xs) (if (empty? xs) nil (if (= 1 (count xs)) (first xs) `(let* (or_FIXME ~(first xs)) (if or_FIXME or_FIXME (or ~@(rest xs))))))))", repl_env.clone());
 
     // Invoked with command line arguments
     let args = stdenv::args();
@@ -368,7 +364,7 @@ fn main() {
     }
 
     // repl loop
-    let _  = rep("(println (str \"Solo [\" *host-language* \"]\"))", repl_env.clone());
+    let _  = rep("(println (str \"Solo v0.1.0\"))", repl_env.clone());
     loop {
         let line = readline::solo_readline("user> ");
         match line { None => break, _ => () }

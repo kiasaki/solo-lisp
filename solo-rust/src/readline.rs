@@ -41,7 +41,7 @@ pub fn readline(prompt: &str) -> Option<String> {
 // --------------------------------------------
 
 static mut history_loaded : bool = false;
-static HISTORY_FILE: &'static str = "/home/kiasaki/.solo-history";
+static HISTORY_FILE: &'static str = "/Users/kiasaki/.solo-history";
 
 fn load_history() {
     unsafe {
