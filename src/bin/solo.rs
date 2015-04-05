@@ -342,7 +342,7 @@ fn main() {
     env_set(&repl_env, symbol("*ARGV*"), list(vec![]));
 
     // load-file defined using the language itself
-    let _ = rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))", repl_env.clone());
+    let _ = rep((def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))", repl_env.clone());
 
     // Invoked with command line arguments
     let args = stdenv::args();
