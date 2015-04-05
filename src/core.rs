@@ -121,7 +121,6 @@ pub fn gt (a: Vec<SoloVal>) -> SoloRet { bool_op(|i,j| { i>j }, a) }
 pub fn gte(a: Vec<SoloVal>) -> SoloRet { bool_op(|i,j| { i>=j }, a) }
 
 pub fn time_ms(_a: Vec<SoloVal>) -> SoloRet {
-    //let x = time::now();
     let now = time::get_time();
     let now_ms = ((now.sec * 1000) as isize) +
                  ((now.nsec as isize) / 1000000);
