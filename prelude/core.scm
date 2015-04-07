@@ -82,9 +82,59 @@
             (list form x))
           `(->> (->> ~x ~form) ~@more))))))
 
+(def! head first)
+(def! tail rest)
+(def! init (fn* (l)
+  (reverse (tail (reverse l)))))
+(def! last (fn* (l)
+  (head (reverse l))))
+
+(def! reduce
+  ^{:d "f -> reduce func, b -> base, l -> list to reduce"}
+  (fn* (f b l)
+    (if (empty? l)
+      b
+      (reduce f (f b (head l)) (tail l)))))
+
+(def! replicate
+  ^{:d "returns a list filled with `n` of `replica`"}
+  (fn* (replica n)
+    (let* (
+      repfn (fn* (l)
+        (if (= (count l) n)
+          l
+          (repfn (cons replica l)))))
+      (repfn []))))
+
+(def! str-join
+  ^{:d "takes a list of strings and a delimiter string and joins list items together"}
+  (fn* (ls sep)
+    (reduce str "")))
+
+(def! file-folder
+  (fn* (filename)
+    (let* (
+      splits (str-split filename *PATH_SEPARATOR*)
+      appender (fn* (f s)
+        (if (empty? s)
+          f
+          (if (eq (nth s (- (count s) 1) *PATH_SEPARATOR*))
+            (appender (str f (head s)) (tail s))
+            (appender (str f *PATH_SEPARATOR*) s)))))
+      (appender "" (init splits)))))
+
+(def! file-basename
+  (fn* (filename)
+    (last (str-split filename *PATH_SEPARATOR*))))
+
+(def! file-ext
+  (fn* (filename)
+    (last (str-split filename *PATH_SEPARATOR*))))
+
 (def! load-file
   (fn* (f)
-    (do 
-      (println (str *FOLDER* *PATH_SEPARATOR* f))
-      (eval (read-string
-          (str "(do " (slurp (str *FOLDER* *PATH_SEPARATOR* f)) ")"))))))
+    (do
+      (let* (*FOLDER* (file-folder f))
+        (println (str *FOLDER* *PATH_SEPARATOR* f))
+        (eval (read-string
+          (str "(do " (slurp (str *FOLDER* *PATH_SEPARATOR* f)) ")")))))))
