@@ -4,19 +4,39 @@ _A small Scheme aimed at developer happiness and productivity in web programming
 
 ### =
 
-Tests equality of two atoms
+Tests equality of two atoms.
 
 ### throw
 
-Throws and error and stops execution
+Throws and error and stops execution.
 
 ### nil?
+
+Returns `true` is given parameter is strictly equal to `nil`
+
 ### true?
+
+Returns `true` is given parameter is strictly equal to `true`
+
 ### false?
+
+Returns `true` is given parameter is strictly equal to `false`
+
 ### symbol
+
+Converts a string to a symbol.
+
 ### symbol?
+
+Returns `true` is given parameter is a symbol, `false` otherwise.
+
 ### keyword
+
+Converts a string to a keyword.
+
 ### keyword?
+
+Returns `true` is given parameter is a keyword, `false` otherwise.
 
 ---
 
@@ -35,6 +55,15 @@ Prints to stdout a pretty string representation of the value passed in
 ### println
 
 Prints to stdout a string representation of the value passed in
+
+### str-split
+
+Splits a string on given delimiter returning a list.
+
+```scheme
+solo> (str-split "asd/asd/wq/d.scm" "/")
+("asd" "asd" "wq" "d.scm")
+```
 
 ### readline
 

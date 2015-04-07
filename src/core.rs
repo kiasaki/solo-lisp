@@ -6,7 +6,7 @@ use std::io::prelude::*;
 use time;
 
 use types::{SoloVal,SoloRet,err_val,err_str,err_string,
-            _nil,_true,_false,_int,string,
+            _nil,_true,_false,_int,string,strn,
             list,vector,listm,vectorm,hash_mapm,func,funcm,solofuncd};
 use types::SoloType::{Nil, Int, Strn, List, Vector, Hash_Map, Func, SoloFunc, Atom};
 use types;
@@ -47,6 +47,25 @@ fn prn(a: Vec<SoloVal>) -> SoloRet {
 fn println(a: Vec<SoloVal>) -> SoloRet {
     println!("{}", printer::pr_list(&a, false, "", "", " "));
     Ok(_nil())
+}
+
+fn str_split(a: Vec<SoloVal>) -> SoloRet {
+    if a.len() != 2 {
+        return err_str("str_split called with less or more than 2 parameter");
+    }
+    match *a[0] {
+        Strn(ref a0) => match *a[1] {
+            Strn(ref a1) => {
+                let mut splits: Vec<SoloVal> = Vec::new();
+                for val in a0.clone().split(a1) {
+                    splits.push(strn(val))
+                }
+                Ok(list(splits))
+            },
+            _ => err_str("str_split called with non-string as parameter 2"),
+        },
+        _ => err_str("str_split called with non-string as parameter 1"),
+    }
 }
 
 fn readline(a: Vec<SoloVal>) -> SoloRet {
@@ -477,6 +496,7 @@ pub fn ns() -> HashMap<String,SoloVal> {
     ns.insert("str".to_string(), func(str));
     ns.insert("prn".to_string(), func(prn));
     ns.insert("println".to_string(), func(println));
+    ns.insert("str-split".to_string(), func(str_split));
     ns.insert("readline".to_string(), func(readline));
     ns.insert("read-string".to_string(), func(read_string));
     ns.insert("slurp".to_string(), func(slurp));
