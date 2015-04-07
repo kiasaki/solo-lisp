@@ -338,11 +338,16 @@ fn main() {
     for (k, v) in core::ns().into_iter() {
         env_set(&repl_env, symbol(&k), v);
     }
-    // see eval() for definition of "eval"
+
+    let p = stdenv::current_dir().unwrap();
+    let mut sep = String::new();
+    sep.push(std::path::MAIN_SEPARATOR);
     env_set(&repl_env, symbol("*ARGV*"), list(vec![]));
+    env_set(&repl_env, symbol("*PATH_SEPARATOR*"), string(sep));
+    env_set(&repl_env, symbol("*FOLDER*"), string(format!("{}", p.display())));
 
     // load-file defined using the language itself
-    let _ = rep((def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))", repl_env.clone());
+    let _ = rep("(def! load-file (fn* (f) (eval (read-string (str \"(do \" (slurp f) \")\")))))", repl_env.clone());
 
     // Invoked with command line arguments
     let args = stdenv::args();
@@ -364,9 +369,9 @@ fn main() {
     }
 
     // repl loop
-    let _  = rep("(println (str \"Solo v0.1.0\"))", repl_env.clone());
+    let _  = rep("(println \"Solo v0.1.0\")", repl_env.clone());
     loop {
-        let line = readline::solo_readline("user> ");
+        let line = readline::solo_readline("solo> ");
         match line { None => break, _ => () }
         match rep(&line.unwrap(), repl_env.clone()) {
             Ok(str)  => println!("{}", str),

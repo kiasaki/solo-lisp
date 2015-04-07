@@ -84,5 +84,7 @@
 
 (def! load-file
   (fn* (f)
-    (eval (read-string
-        (str "(do " (slurp f) ")")))))
+    (do 
+      (println (str *FOLDER* *PATH_SEPARATOR* f))
+      (eval (read-string
+          (str "(do " (slurp (str *FOLDER* *PATH_SEPARATOR* f)) ")"))))))

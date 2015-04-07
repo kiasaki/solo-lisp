@@ -114,6 +114,7 @@ pub fn add(a: Vec<SoloVal>) -> SoloRet { int_op(|i,j| { i+j }, a) }
 pub fn sub(a: Vec<SoloVal>) -> SoloRet { int_op(|i,j| { i-j }, a) }
 pub fn mul(a: Vec<SoloVal>) -> SoloRet { int_op(|i,j| { i*j }, a) }
 pub fn div(a: Vec<SoloVal>) -> SoloRet { int_op(|i,j| { i/j }, a) }
+pub fn modulo(a: Vec<SoloVal>) -> SoloRet { int_op(|i,j| { i%j }, a) }
 
 pub fn lt (a: Vec<SoloVal>) -> SoloRet { bool_op(|i,j| { i<j }, a) }
 pub fn lte(a: Vec<SoloVal>) -> SoloRet { bool_op(|i,j| { i<=j }, a) }
@@ -488,6 +489,7 @@ pub fn ns() -> HashMap<String,SoloVal> {
     ns.insert("-".to_string(), func(sub));
     ns.insert("*".to_string(), func(mul));
     ns.insert("/".to_string(), func(div));
+    ns.insert("%".to_string(), func(modulo));
     ns.insert("time-ms".to_string(), func(time_ms));
 
     ns.insert("list".to_string(), func(types::listv));
