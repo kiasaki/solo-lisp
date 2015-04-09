@@ -216,10 +216,10 @@ fn eval(mut ast: SoloVal, mut env: Env) -> SoloRet {
                             env_set(&env.clone(), a1.clone(), mf.clone());
                             return Ok(mf);
                         },
-                        _ => return err_str("def! of non-symbol"),
+                        _ => return err_str("defmacro! of non-symbol"),
                     }
                 },
-                _ => return err_str("def! of non-symbol"),
+                _ => return err_str("defmacro! of non-symbol"),
             }
         },
         "macroexpand" => {

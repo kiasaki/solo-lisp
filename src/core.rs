@@ -284,13 +284,13 @@ pub fn nth(a: Vec<SoloVal>) -> SoloRet {
     }
 }
 
-pub fn first(a: Vec<SoloVal>) -> SoloRet {
+pub fn head(a: Vec<SoloVal>) -> SoloRet {
     if a.len() != 1 {
-        return err_str("Wrong arity to first call");
+        return err_str("Wrong arity to head call");
     }
     let seq = match *a[0] {
         List(ref v,_) | Vector(ref v,_) => v,
-        _ => return err_str("first called with non-sequence"),
+        _ => return err_str("head called with non-sequence"),
     };
     if seq.len() == 0 {
         Ok(_nil())
@@ -299,13 +299,13 @@ pub fn first(a: Vec<SoloVal>) -> SoloRet {
     }
 }
 
-pub fn rest(a: Vec<SoloVal>) -> SoloRet {
+pub fn tail(a: Vec<SoloVal>) -> SoloRet {
     if a.len() != 1 {
-        return err_str("Wrong arity to rest call");
+        return err_str("Wrong arity to tail call");
     }
     let seq = match *a[0] {
         List(ref v,_) | Vector(ref v,_) => v,
-        _ => return err_str("rest called with non-sequence"),
+        _ => return err_str("tail called with non-sequence"),
     };
     if seq.len() == 0 {
         Ok(list(vec![]))
@@ -482,15 +482,21 @@ fn swap_bang(a: Vec<SoloVal>) -> SoloRet {
 pub fn ns() -> HashMap<String,SoloVal> {
     let mut ns = HashMap::new();;
 
-    ns.insert("=".to_string(), func(equal_q));
-    ns.insert("throw".to_string(), func(throw));
     ns.insert("nil?".to_string(), func(types::nil_q));
     ns.insert("true?".to_string(), func(types::true_q));
     ns.insert("false?".to_string(), func(types::false_q));
-    ns.insert("symbol".to_string(), func(types::_symbol));
     ns.insert("symbol?".to_string(), func(types::symbol_q));
-    ns.insert("keyword".to_string(), func(types::_keyword));
     ns.insert("keyword?".to_string(), func(types::keyword_q));
+    ns.insert("list?".to_string(), func(types::list_q));
+    ns.insert("vector?".to_string(), func(types::vector_q));
+    ns.insert("map?".to_string(), func(types::hash_map_q));
+    ns.insert("atom?".to_string(), func(types::atom_q));
+    ns.insert("symbol".to_string(), func(types::_symbol));
+    ns.insert("keyword".to_string(), func(types::_keyword));
+    ns.insert("list".to_string(), func(types::listv));
+    ns.insert("vector".to_string(), func(types::vectorv));
+    ns.insert("hash-map".to_string(), func(types::hash_mapv));
+    ns.insert("atom".to_string(), func(types::atom));
 
     ns.insert("pr-str".to_string(), func(pr_str));
     ns.insert("str".to_string(), func(str));
@@ -510,14 +516,10 @@ pub fn ns() -> HashMap<String,SoloVal> {
     ns.insert("*".to_string(), func(mul));
     ns.insert("/".to_string(), func(div));
     ns.insert("%".to_string(), func(modulo));
+    ns.insert("=".to_string(), func(equal_q));
+    ns.insert("throw".to_string(), func(throw));
     ns.insert("time-ms".to_string(), func(time_ms));
 
-    ns.insert("list".to_string(), func(types::listv));
-    ns.insert("list?".to_string(), func(types::list_q));
-    ns.insert("vector".to_string(), func(types::vectorv));
-    ns.insert("vector?".to_string(), func(types::vector_q));
-    ns.insert("hash-map".to_string(), func(types::hash_mapv));
-    ns.insert("map?".to_string(), func(types::hash_map_q));
     ns.insert("assoc".to_string(), func(assoc));
     ns.insert("dissoc".to_string(), func(dissoc));
     ns.insert("get".to_string(), func(get));
@@ -530,8 +532,8 @@ pub fn ns() -> HashMap<String,SoloVal> {
     ns.insert("concat".to_string(), func(concat));
     ns.insert("empty?".to_string(), func(empty_q));
     ns.insert("nth".to_string(), func(nth));
-    ns.insert("first".to_string(), func(first));
-    ns.insert("rest".to_string(), func(rest));
+    ns.insert("head".to_string(), func(head));
+    ns.insert("tail".to_string(), func(tail));
     ns.insert("count".to_string(), func(count));
     ns.insert("apply".to_string(), func(apply));
     ns.insert("map".to_string(), func(map));
@@ -539,8 +541,6 @@ pub fn ns() -> HashMap<String,SoloVal> {
 
     ns.insert("with-meta".to_string(), func(with_meta));
     ns.insert("meta".to_string(), func(meta));
-    ns.insert("atom".to_string(), func(types::atom));
-    ns.insert("atom?".to_string(), func(types::atom_q));
     ns.insert("deref".to_string(), func(deref));
     ns.insert("reset!".to_string(), func(reset_bang));
     ns.insert("swap!".to_string(), func(swap_bang));
