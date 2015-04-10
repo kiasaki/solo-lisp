@@ -74,7 +74,7 @@ fn readline(a: Vec<SoloVal>) -> SoloRet {
             Some(line) => Ok(string(line)),
             None       => err_val(_nil()),
         },
-        _ => err_str("read_string called with non-string"),
+        _ => err_str("readline called with non-string"),
     }
 }
 

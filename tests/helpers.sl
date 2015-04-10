@@ -1,1 +1,1 @@
-(load-file "../prelude/core.sl")
+(load-file "test.sl")
