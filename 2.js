@@ -1,4 +1,5 @@
 var Parsimmon = require('parsimmon');
+var escodegen = require('escodegen');
 
 var read = (function() {
   function interpretEscapes(str) {
@@ -69,22 +70,86 @@ var read = (function() {
 })();
 
 var parse = function(source) {
-  var result = parse.parse(source);
+  var result = read.parse(source);
   if (!result.status) {
-    return Parsimmon.formatError(source, result);
+    throw new Error(Parsimmon.formatError(source, result));
   } else {
     return result.value;
   }
-}
+};
+
+var builtins = {
+  def: function(form) {
+    // TODO Guard against items.length != 3
+    return {
+      type: 'VariableDeclaration',
+      kind: 'let',
+      declarations: [{
+        type: 'VariableDeclarator',
+        id: {
+          type: 'Identifier',
+          name: form.items[1]
+        },
+        init: writeForm(form.items[2])
+      }]
+    };
+  }
+};
+
+var writeForm = function(form) {
+  if (typeof form === 'object' && form.type) {
+    if (form.type === 'list') {
+      if (form.items[0] && form.items[0] in builtins) {
+        return builtins[form.items[0]](form);
+      } else {
+        // treat as function call
+        return {
+          type: 'CallExpression',
+          callee: {
+            type: 'Identifier',
+            name: form.items[0]
+          },
+          arguments: form.items.slice(1).map(function(item) {
+            return writeForm(item);
+          })
+        }
+      }
+    } else {
+      // TODO other (array, obj)
+    }
+  } else {
+    return {
+      type: 'Literal',
+      value: form
+    };
+  }
+};
 
 var write = function(ast) {
-  var cgReadyAst = {};
+  var cgReadyAst = {
+    type: 'Program',
+    body: []
+  };
 
+  for (var form in ast) {
+    cgReadyAst.body.push(writeForm(ast[form]));
+  }
+
+  //console.log(JSON.stringify(cgReadyAst, null, 1));
   return escodegen.generate(cgReadyAst);
 };
 
-
 var source = require('fs').readFileSync('test.sl', 'utf8');
-console.log(JSON.stringify(
-  go(source)
-, null, 2));
+console.log(write(parse(source)));
+
+/*
+
+;(set asd {a 1 b 2})
+
+;(function ()
+;  (if true
+;    false
+;    9))
+
+;(console.log "asd")
+*/
