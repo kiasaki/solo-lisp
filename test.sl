@@ -1,5 +1,5 @@
 ; solo lisp test
-(require "asd\n\x41")
+(require "asd\n\uA789")
 
 (+ 1 2)
 

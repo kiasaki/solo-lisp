@@ -335,4 +335,81 @@ solo.parse = function (source, uri) {
   return solo.reader.read(reader);
 }
 
+solo.write = (function() {
+  function writeString(string) {
+    string = string.replace(/\\\\/g, '\\\\');
+    string = string.replace(/\n/g, '\\n');
+    string = string.replace(/\r/g, '\\r');
+    string = string.replace(/\t/g, '\\t');
+    string = string.replace(/\"/g, '\\"');
+    return '"' + string + '"';
+  }
+
+  function writeBlock() {
+
+  }
+
+  function writeFunction(astNode) {
+    // TODO Guard against less than 1 items
+    // TODO Guard against param 1 not being a list
+    return 'function(' + astNode.items[1].items.map(writeNode).join(', ') + ')'
+      + ' {\n  ' + write(astNode.items.slice(2)).replace(/\n/g, '\n  ') + '\n}';
+  }
+
+  function writeIf(astNode) {
+    // TODO Guard against less than 1 items
+    return 'if (' + writeNode(astNode.items[1]) + ')'
+      + ' {\n  ' + writeNode(astNode.items[2]).replace('\n', '\n  ') + '\n' +
+        '} else {\n  ' + writeNode(astNode.items[3]).replace('\n', '\n  ') + '\n}';
+  }
+
+  function writeList(astNode) {
+    // TODO add callee type check
+    // TODO add callee primitives handling
+    if (astNode.items.length === 0) return '';
+    var callee = astNode.items[0].value;
+    var params = astNode.items.slice(1);
+
+    if (callee === 'function') return writeFunction(astNode);
+    if (callee === 'if') return writeIf(astNode);
+
+    return callee + '(' + params.map(writeNode).join(', ') + ');';
+  }
+
+  function writeNode(astNode) {
+    switch (astNode.type) {
+      case TYPE_COMMENT: return '//' + astNode.value.replace(/^;+/, '') + '\n';
+      case TYPE_STRING: return writeString(astNode.value);
+      case TYPE_IDENTIFIER: return astNode.value;
+      case TYPE_NUMBER: return astNode.value;
+      case TYPE_LIST: return writeList(astNode).trim(' ');
+      case TYPE_ARRAY: return '[' + write(astNode.items).trim(' ') + ']';
+      case TYPE_OBJECT: return '{' + write(astNode.items).trim(' ') + '}';
+    }
+  }
+
+  function write(ast) {
+    var buffer = '';
+    for (var i in ast) {
+      var node = ast[i];
+
+      // Add line returns
+      if (ast[i - 1] && node.location.start.line != ast[i - 1].location.start.line) {
+        var returns = new Array(node.location.start.line - ast[i - 1].location.start.line + 1);
+        buffer += returns.join('\n');
+      }
+
+      buffer += writeNode(node);
+
+      if (buffer[buffer.length - 1] !== '\n') {
+        buffer += ' '; // Space elements (not after new lines)
+      }
+    }
+
+    return buffer;
+  }
+
+  return write;
+})();
+
 module.exports = solo;

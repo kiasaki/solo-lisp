@@ -14,9 +14,17 @@ function clean(ast) {
 }
 
 console.log(
+  solo.write(
+    solo.parse(source, 'test.sl')
+  )
+);
+
+/*
+console.log(
   JSON.stringify(
     clean(
       solo.parse(source, 'test.sl')
     )
   , null, 2)
 );
+*/
