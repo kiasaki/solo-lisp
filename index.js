@@ -11,6 +11,13 @@ var TYPE_LIST = 'list';
 var TYPE_OBJECT = 'object';
 var TYPE_ARRAY = 'array';
 
+function UnmatchedDelimiterError(message) {
+  this.constructor.prototype.__proto__ = Error.prototype;
+  Error.captureStackTrace(this, this.constructor);
+  this.name = this.constructor.name;
+  this.message = message;
+}
+
 var solo = {};
 
 solo.reader = (function() {
@@ -26,6 +33,11 @@ solo.reader = (function() {
     };
   }
 
+  // Location URI used in sub readers instansiation
+  function readerLocationUri(reader) {
+    return reader.uri.split('#')[0] + '#' + (reader.line + 1) + ':' + (reader.column + 1);
+  }
+
   // Return next char without reading it, or, nil if we reached the end of
   // the stream
   function peekChar(reader) {
@@ -38,10 +50,15 @@ solo.reader = (function() {
   function nextChar(reader) {
     var ch = peekChar(reader);
     if (isNewline(ch)) {
-      reader.line++;
+      reader.line++; // Advance to next line
+      while (reader.lines[reader.line] === '') {
+        reader.line++; // Skip empty lines
+      }
+
       reader.column = -1;
+    } else {
+      reader.column++;
     }
-    reader.column++;
     return ch;
   }
 
@@ -105,7 +122,11 @@ solo.reader = (function() {
   // --- Readers
 
   function readUnmatchedDelimiter(reader, ch) {
-    readerError(reader, 'Unmatched delimiter "' + ch + '"');
+    var err = new UnmatchedDelimiterError('Unmatched delimiter "' + ch + '"');
+    err.line = reader.line;
+    err.column = reader.column;
+    err.uri = reader.uri;
+    throw err;
   }
 
   function makeUnicodeChar(codeStr) {
@@ -170,7 +191,7 @@ solo.reader = (function() {
   function readComment(reader, ch) {
     var buffer = '';
     var ch;
-    while (ch = peekChar(reader)) {
+    while (ch = nextChar(reader)) {
       if (ch === '\n') {
         return {type: TYPE_COMMENT, value: buffer};
       } else if (ch === '\\') {
@@ -178,54 +199,64 @@ solo.reader = (function() {
       } else {
         buffer += ch;
       }
-      nextChar(reader); // Only consume here so "returning" case is not affected
     }
     // We hit EOF (nextChar() == null)
     readerError(reader, 'Reached end-of-file while reading a comment');
   }
 
   function readUntil(reader, predicate) {
-    var buffer = currentChar(reader);
+    var buffer = '';
     var ch;
-    while ((ch = nextChar(reader)) && predicate(ch)) {
+    while ((ch = peekChar(reader)) && predicate(ch)) {
       buffer += ch;
+      nextChar(reader); // Don't consume non predicate matches
     }
     if (!ch) return null; // We stopped because of EOF not predicate
     return buffer;
   }
 
-  function readList(reader, ch) {
-    nextChar(reader); // skip openning
-    var contents = readUntil(reader, not(eq(')')));
-    if (!contents) readerError(reader, 'End-of-file reached reading list, missing )');
-    nextChar(reader); // consume closing )
-    return {type: TYPE_LIST, items: contents};
+  function buildSetReader(type, closingCh) {
+    return function(reader, ch) {
+      var forms = [];
+      nextChar(reader); // Consume opening
+
+      // TODO Fix here
+      while (ch = peekChar(reader)) {
+        var r = readUntil(reader, isWhitespace);
+        if (r === null) readerError(reader, 'End-of-file reached reading list, missing ' + closingCh);
+        if (ch === closingCh) {
+          nextChar(reader); // Consume closing
+          return {type: type, items: forms};
+        } else {
+          try {
+            forms.push(readForm(reader));
+          } catch (err) {
+            if (err instanceof UnmatchedDelimiterError) {
+              // Cool, we read the whole set
+            } else {
+              throw err;
+            }
+          }
+        }
+      }
+      nextChar(reader); // consume closing )
+    }
   }
 
-  function readArray(reader, ch) {
-    nextChar(reader); // skip openning
-    var contents = readUntil(reader, not(eq(']')));
-    if (!contents) readerError(reader, 'End-of-file reached reading array, missing ]');
-    nextChar(reader); // consume closing ]
-    return {type: TYPE_ARRAY, items: contents};
-  }
-
-  function readObject(reader, ch) {
-    nextChar(reader); // skip openning
-    var contents = readUntil(reader, not(eq('}')));
-    if (!contents) readerError(reader, 'End-of-file reached reading object, missing }');
-    nextChar(reader); // consume closing }
-    return {type: TYPE_OBJECT, items: contents};
-  }
+  var readList = buildSetReader(TYPE_LIST, ')');
+  var readArray = buildSetReader(TYPE_ARRAY, ']');
+  var readObject = buildSetReader(TYPE_OBJECT, '}');
 
   function readIdentifier(reader, ch) {
-    var ident = readUntil(reader, not(isWhitespace));
+    var ident = ch + readUntil(reader, not(isWhitespace));
     return {type: TYPE_IDENTIFIER, value: ident};
   }
 
   function readNumber(reader, ch) {
-    var num = readUntil(reader, not(isWhitespace));
-    return {type: TYPE_NUMBER, value: ident};
+    var num = ch + readUntil(reader, function(ch) {
+      return !isWhitespace(ch) && [')', '}', ']'].indexOf(ch) === -1;
+    });
+    return {type: TYPE_NUMBER, value: num};
   }
 
   function readersSelect(ch) {
@@ -265,7 +296,7 @@ solo.reader = (function() {
     var start = {line: reader.line, column: reader.column};
     var form = _readForm(reader);
     var end = {line: reader.line, column: reader.column};
-    form.location = {start: start, end: end};
+    form.location = {start: start, end: end, uri: reader.uri};
     return form;
   }
 
@@ -273,16 +304,19 @@ solo.reader = (function() {
     var ast = [];
     var ch;
 
+    var start;
     try {
-    while (ch = peekChar(reader)) {
-      if (!isWhitespace(ch)) {
-        ast.push(readForm(reader));
-      } else {
-        nextChar(reader); // Consume char
+      while (ch = peekChar(reader)) {
+        if (!isWhitespace(ch)) {
+          start = {line: reader.line, column: reader.column};
+          ast.push(readForm(reader));
+        } else {
+          nextChar(reader); // Consume char & go on
+        }
       }
-    }
     } catch (err) {
-      console.log('Error: ' + err.message);
+      // TODO: Debugging
+      console.log('Error: ' + err.message + '\nuri:' + reader.uri, start);
       return ast;
     }
 
