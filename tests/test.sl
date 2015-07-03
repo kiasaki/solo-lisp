@@ -1,1 +1,0 @@
-(println (str "HEELO" *FOLDER*))
