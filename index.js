@@ -3,7 +3,17 @@
 // int ([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?
 // float ^([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)(N)?$
 
-var reader = (function() {
+var TYPE_COMMENT = 'comment';
+var TYPE_STRING = 'string';
+var TYPE_IDENTIFIER = 'identifier';
+var TYPE_NUMBER = 'number';
+var TYPE_LIST = 'list';
+var TYPE_OBJECT = 'object';
+var TYPE_ARRAY = 'array';
+
+var solo = {};
+
+solo.reader = (function() {
   // --- Core
 
   // Returns an object representing a Reader
@@ -35,6 +45,12 @@ var reader = (function() {
     return ch;
   }
 
+  function currentChar(reader) {
+    var line = reader.lines[reader.line];
+    if (!line) return null;
+    return line[reader.column] || '\n';
+  }
+
   // Return the next n chars, moving the reader's cursor
   function nextNChars(reader, n) {
     var buffer = '';
@@ -61,11 +77,35 @@ var reader = (function() {
     return ch === '\n';
   }
 
+  function isWhitespace(ch) {
+    return [' ', '\t', '\n', '\r'].indexOf(ch) !== -1;
+  }
+
+  function isNumberStart(reader, ch) {
+    var numbers = '0,1,2,3,4,5,6,7,8,9'.split(',');
+    if (numbers.indexOf(ch) !== -1) return true;
+    if (['-', '+'].indexOf(ch) !== -1) {
+      return numbers.indexOf(peekChar(reader)) !== -1;
+    }
+    return false;
+  }
+
+  function not(fn) {
+    return function() {
+      return !fn.apply(this, arguments);
+    };
+  }
+
+  function eq(a) {
+    return function(b) {
+      return a === b;
+    };
+  }
 
   // --- Readers
 
   function readUnmatchedDelimiter(reader, ch) {
-    readerError(reader, 'Unmatched delimiter "' + ch '"');
+    readerError(reader, 'Unmatched delimiter "' + ch + '"');
   }
 
   function makeUnicodeChar(codeStr) {
@@ -74,7 +114,7 @@ var reader = (function() {
   }
 
   function validateUnicodeEscape(pattern, reader, escapeCh, codeStr) {
-    if (pattern.match(codeStr)) {
+    if (pattern.test(codeStr)) {
       return codeStr;
     } else {
       readerError(reader, 'Unexpected unicode escape \\' + escapeCh + codeStr);
@@ -112,12 +152,13 @@ var reader = (function() {
 
   function readString(reader, delimiter) {
     var buffer = '';
+    var ch;
     nextChar(reader);
-    while (var ch = nextChar(reader)) {
+    while (ch = nextChar(reader)) {
       if (ch === '\\') {
         buffer += escapeChar(reader, nextChar(reader));
       } else if (ch === delimiter) {
-        return new String(buffer);
+        return {type: TYPE_STRING, value: buffer};
       } else {
         buffer += ch;
       }
@@ -127,19 +168,64 @@ var reader = (function() {
   }
 
   function readComment(reader, ch) {
-  
+    var buffer = '';
+    var ch;
+    while (ch = peekChar(reader)) {
+      if (ch === '\n') {
+        return {type: TYPE_COMMENT, value: buffer};
+      } else if (ch === '\\') {
+        buffer += escapeChar(reader, nextChar(reader));
+      } else {
+        buffer += ch;
+      }
+      nextChar(reader); // Only consume here so "returning" case is not affected
+    }
+    // We hit EOF (nextChar() == null)
+    readerError(reader, 'Reached end-of-file while reading a comment');
+  }
+
+  function readUntil(reader, predicate) {
+    var buffer = currentChar(reader);
+    var ch;
+    while ((ch = nextChar(reader)) && predicate(ch)) {
+      buffer += ch;
+    }
+    if (!ch) return null; // We stopped because of EOF not predicate
+    return buffer;
   }
 
   function readList(reader, ch) {
-  
+    nextChar(reader); // skip openning
+    var contents = readUntil(reader, not(eq(')')));
+    if (!contents) readerError(reader, 'End-of-file reached reading list, missing )');
+    nextChar(reader); // consume closing )
+    return {type: TYPE_LIST, items: contents};
   }
 
   function readArray(reader, ch) {
-  
+    nextChar(reader); // skip openning
+    var contents = readUntil(reader, not(eq(']')));
+    if (!contents) readerError(reader, 'End-of-file reached reading array, missing ]');
+    nextChar(reader); // consume closing ]
+    return {type: TYPE_ARRAY, items: contents};
   }
 
   function readObject(reader, ch) {
-    
+    nextChar(reader); // skip openning
+    var contents = readUntil(reader, not(eq('}')));
+    if (!contents) readerError(reader, 'End-of-file reached reading object, missing }');
+    nextChar(reader); // consume closing }
+    return {type: TYPE_OBJECT, items: contents};
+  }
+
+  function readIdentifier(reader, ch) {
+    var ident = readUntil(reader, not(isWhitespace));
+    return {type: TYPE_IDENTIFIER, value: ident};
+  }
+
+  function readNumber(reader, ch) {
+    var num = readUntil(reader, not(isWhitespace));
+    return {type: TYPE_NUMBER, value: ident};
   }
 
   function readersSelect(ch) {
@@ -157,13 +243,52 @@ var reader = (function() {
     }
   }
 
-  function read(reader) {
+  function _readForm(reader) {
     var ch = peekChar(reader);
     if (!ch) return null;
     var readHandler = readersSelect(ch);
 
-    return handler(reader, ch);
+    if (readHandler) {
+      return readHandler(reader, ch);
+    } else {
+      // not else if because we need to advance reader to have 2 next chars
+      var ch = nextChar(reader);
+      if (isNumberStart(reader, ch)) {
+        return readNumber(reader, ch);
+      } else {
+        return readIdentifier(reader, ch);
+      }
+    }
   }
+
+  function readForm(reader) {
+    var start = {line: reader.line, column: reader.column};
+    var form = _readForm(reader);
+    var end = {line: reader.line, column: reader.column};
+    form.location = {start: start, end: end};
+    return form;
+  }
+
+  function read(reader) {
+    var ast = [];
+    var ch;
+
+    try {
+    while (ch = peekChar(reader)) {
+      if (!isWhitespace(ch)) {
+        ast.push(readForm(reader));
+      } else {
+        nextChar(reader); // Consume char
+      }
+    }
+    } catch (err) {
+      console.log('Error: ' + err.message);
+      return ast;
+    }
+
+    return ast;
+  }
+
 
   return {
     newReader: newReader,
@@ -171,18 +296,9 @@ var reader = (function() {
   };
 })();
 
-var parse = function (source, uri) {
-  var r = reader.newReader(source, uri);
-  var ast = [];
-
-  while (var form = reader.read(r)) {
-    ast.push(form);
-  }
-
-  return ast;
+solo.parse = function (source, uri) {
+  var reader = solo.reader.newReader(source, uri);
+  return solo.reader.read(reader);
 }
 
-module.exports = {
-  reader: reader,
-  parse: parse
-};
+module.exports = solo;

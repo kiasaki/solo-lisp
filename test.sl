@@ -1,5 +1,5 @@
 ; solo lisp test
-(require "asd\n\x65")
+(require "asd\n\x41")
 
 (+ 1 2)
 

@@ -4,4 +4,4 @@ var source = require('fs').readFileSync('test.sl', 'utf8');
 
 console.log(
   JSON.stringify(
-    solo.parse(source, 'test.sl')));
+    solo.parse(source, 'test.sl'), null, 2));
