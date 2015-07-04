@@ -1,4 +1,23 @@
 ; solo lisp test
-(def asd (require "asd\n\uA789"))
+(def asd (require "asd\n\uA789'"))
 
-(+ 1 2)
+(/ (+ 2 (* 7 8)) 9)
+
+(|| 1 2 3 4)
+
+(def x (if (=== 4 5) "yes" "no"))
+
+(def obj {
+  a
+  (function (a) (a))
+  v
+  3
+  c
+  6
+  })
+
+(def square (function (x)
+  (def list [3 1 2])
+  (* x x)))
+
+(console.log (new Date))
