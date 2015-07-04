@@ -2,6 +2,7 @@
 
 var solo = require('../index');
 
-var source = require('fs').readFileSync(__dirname + '/../test.sl', 'utf8');
+var source = require('fs').readFileSync(process.argv[2], 'utf8');
+console.log("'use strict';");
 console.log(solo.write(solo.parse(source)));
 

@@ -11,6 +11,15 @@ _lispy_ syntax. See for yourself...
 $ npm install -g solo
 $ echo "(def square (function (x) (* x x))) (console.log (square 5))" > test.sl
 $ solo test.sl
+
+'use strict';
+let square = function (x) {
+      return x * x;
+};
+console.log(square(5));
+
+$ solo test.sl | node --harmony
+
 25
 ```
 
