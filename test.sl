@@ -21,3 +21,13 @@
   (* x x)))
 
 (console.log (new Date))
+
+(function? 2)
+
+(null? null)
+(true? false)
+
+(instanceof "asd" Date)
+(void 0)
+(% (+ (- 5 1) 4) 2)
+(set! obj.v 6)

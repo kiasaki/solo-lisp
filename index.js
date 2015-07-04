@@ -30,6 +30,7 @@ var read = (function() {
 
   var regex = Parsimmon.regex;
   var string = Parsimmon.string;
+  var whitespace = Parsimmon.whitespace;
   var optWhitespace = Parsimmon.optWhitespace;
   var lazy = Parsimmon.lazy;
   var alt = Parsimmon.alt;
@@ -50,9 +51,9 @@ var read = (function() {
     .map(function(s) { return new Symbol(s); })
     .desc('identifier');
 
-  var nullLiteral = lexeme(string('null')).result(null).desc('string');
-  var trueLiteral = lexeme(string('true')).result(true).desc('boolean');
-  var falseLiteral = lexeme(string('false')).result(false).desc('boolean');
+  var nullLiteral = lexeme(string('null').then(whitespace)).result(null).desc('string');
+  var trueLiteral = lexeme(string('true').then(whitespace)).result(true).desc('boolean');
+  var falseLiteral = lexeme(string('false').then(whitespace)).result(false).desc('boolean');
 
   var atom = alt(
     nullLiteral,
@@ -113,6 +114,7 @@ var buildBinaryExpr = function(form) {
       operator: form.items[0].toString(),
       left: writeForm(form.items[1]),
       right: buildBinaryExpr({
+        type: 'list',
         items: [form.items[0]].concat(form.items.slice(2))
       })
     };
@@ -175,6 +177,15 @@ var buildFunctionExpr = function(form) {
   };
 };
 
+var buildUnaryExpr = function(form) {
+  return {
+    type: 'UnaryExpression',
+    operator: form.items[0].toString(),
+    argument: writeForm(form.items[1]),
+    prefix: true
+  };
+};
+
 var buildNewExpr = function(form) {
   return {
     type: 'NewExpression',
@@ -229,6 +240,30 @@ var buildObjectExpr = function(form) {
   };
 };
 
+var methodTypeEq = function(type) {
+  return function(form) {
+    var typeOfExpr = {
+      type: 'list',
+      items: [new Symbol('typeof'), form.items[1]]
+    };
+    return buildBinaryExpr({
+      type: 'list',
+      items: [new Symbol('==='), typeOfExpr, type]
+    });
+  };
+};
+
+var methodEqLiteral = function(literal) {
+  return function(form) {
+    if (!form.items || form.items.length !== 2) {
+      throw new Error('Method "' + literal + ' takes exactly 1 parameter. Got ' + form.items.length-1 + '.');
+    }
+    return buildBinaryExpr({
+      items: [new Symbol('==='), form.items[1], literal]
+    });
+  };
+};
+
 var builtins = {
   def: function(form) {
     // TODO Guard against items.length != 3
@@ -242,13 +277,36 @@ var builtins = {
       }]
     };
   },
+  'set!': function(form) {
+    if (form.items.length !== 3) {
+      throw new Error('The "set!" method takes exactly 2 parameters. Got ' + form.items.length-1 + '.');
+    }
+    if (!(form.items[0] instanceof Symbol)) {
+      throw new Error('The "set!" method takes only symbols as 1st parameter.');
+    }
+    return {
+      type: 'AssignmentExpression',
+      operator: '=',
+      left: buildIdentifierExpr(form.items[1]),
+      right: writeForm(form.items[2])
+    };
+  },
+
   'if': buildIfExpr,
   'function': buildFunctionExpr,
   'new': buildNewExpr,
+
+  'instanceof': buildBinaryExpr,
+
+  'typeof': buildUnaryExpr,
+  'void': buildUnaryExpr,
+
   '+': buildBinaryExpr,
   '-': buildBinaryExpr,
   '*': buildBinaryExpr,
   '/': buildBinaryExpr,
+  '%': buildBinaryExpr,
+
   '<': buildBinaryExpr,
   '<=': buildBinaryExpr,
   '>': buildBinaryExpr,
@@ -258,11 +316,25 @@ var builtins = {
   '==': buildBinaryExpr,
   '===': buildBinaryExpr,
   '!=': buildBinaryExpr,
-  '!==': buildBinaryExpr
+  '!==': buildBinaryExpr,
+
+  'null?': methodEqLiteral(null),
+  'true?': methodEqLiteral(true),
+  'false?': methodEqLiteral(false),
+  'undefined?': methodTypeEq('undefined'),
+  'boolean?': methodTypeEq('boolean'),
+  'number?': methodTypeEq('number'),
+  'string?': methodTypeEq('string'),
+  'object?': methodTypeEq('object'),
+  'array?': methodTypeEq('array'),
+  'function?': methodTypeEq('function'),
 };
 
 var writeForm = function(form) {
-  if (form.type === 'list') {
+  if (form === null) { return {type: 'Literal', value: null};
+  } else if (form === true) { return {type: 'Literal', value: true};
+  } else if (form === false) { return {type: 'Literal', value: false};
+  } else if (form.type === 'list') {
     if (form.items[0] && form.items[0].toString() in builtins) {
       return builtins[form.items[0].toString()](form);
     } else {
