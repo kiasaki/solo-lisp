@@ -365,6 +365,7 @@ var write = function(ast) {
     cgReadyAst.body.push(buildExpressionStatement(writeForm(ast[form])));
   }
 
+  require('brushtail').mutateAST(cgReadyAst);
   //console.log(JSON.stringify(cgReadyAst, null, 1));
   return escodegen.generate(cgReadyAst);
 };
@@ -373,3 +374,21 @@ module.exports = {
   parse: parse,
   write: write
 };
+
+/*
+ * For TCO
+
+var count = function count(f, t) {
+  return function loop() {
+    var recur = loop;
+    var fø2 = f;
+    var tø2 = t;
+    do {
+      // other exprs
+      recur = fø2 >= tø2 ? fø2 : (loop[0] = 1 + fø2, loop[1] = tø2, loop);
+    } while (fø2 = loop[0], tø2 = loop[1], recur === loop);
+    return recur;
+  }.call(this);
+};
+
+*/

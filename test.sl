@@ -1,5 +1,5 @@
 ; solo lisp test
-(def asd (require "asd\n\uA789'"))
+(def asd (require "escodegen"))
 
 (/ (+ 2 (* 7 8)) 9)
 
@@ -12,8 +12,6 @@
   (function (a) (a))
   v
   3
-  c
-  6
   })
 
 (def square (function (x)
@@ -22,12 +20,13 @@
 
 (console.log (new Date))
 
-(function? 2)
-
-(null? null)
-(true? false)
-
 (instanceof "asd" Date)
 (void 0)
-(% (+ (- 5 1) 4) 2)
 (set! obj.v 6)
+
+(def count (function (from to)
+  (if (>= from to)
+    from
+    (count (+ 1 from) to))))
+
+(console.log (count 0 100000000))
