@@ -56,10 +56,10 @@ $ solo test.sl | node --harmony
 ```
 if function new
 instanceof typeof void
+def set!
 + - * / %
 < <= > >= || && == === != !==
 null? true? false?
-def set!
 undefined? boolean? number? string? object? array? function?
 ```
 

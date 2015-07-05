@@ -41,7 +41,7 @@ var read = (function() {
 
   var expr = lazy('s-expression', function() { return form.or(atom); });
 
-  var str = lexeme(regex(/"((?:\\.|.)*?)"/, 1))
+  var str = lexeme(regex(/"((?:\\.|.|\s)*?)"/, 1))
     .map(interpretEscapes)
     .desc('string');
   var number = lexeme(regex(/-?(0|[1-9]\d*)([.]\d+)?(e[+-]?\d+)?/i))
@@ -154,6 +154,27 @@ var buildFunctionExpr = function(form) {
   }
 
   var body = [];
+  var params = [];
+
+  // Params
+  for (var i in form.items[1].items) {
+    var param = form.items[1].items[i];
+    if (param.toString() === '.' && parseInt(i) === form.items[1].items.length - 2) {
+      body.push(buildDefinitionExpr({
+        type: 'list',
+        items: [new Symbol('def'), form.items[1].items[parseInt(i)+1], {
+          type: 'list',
+          items: [new Symbol('Array.prototype.slice.call'), new Symbol('arguments'), form.items[1].items.length-2]
+        }]
+      }));
+      break;
+    } else {
+      params.push(buildIdentifierExpr(param));
+    }
+  }
+
+
+  // Body
   var bodyExprsExcludingLast = form.items.slice(2, -1);
   for (var i in bodyExprsExcludingLast) {
     body.push(buildExpressionStatement(writeForm(bodyExprsExcludingLast[i])))
@@ -166,7 +187,7 @@ var buildFunctionExpr = function(form) {
   return {
     type: 'FunctionExpression',
     id: null,
-    params: form.items[1].items.map(buildIdentifierExpr),
+    params: params,
     defaults: [],
     body: {
       type: 'BlockStatement',
@@ -264,33 +285,46 @@ var methodEqLiteral = function(literal) {
   };
 };
 
+var buildDefinitionExpr = function(form) {
+  if ((form.items.length-1) % 2 !== 0) {
+    throw new Error('The "def" expression takes a pair number of arguments.');
+  }
+
+  var declarations = [];
+  var rawDeclarations = form.items.slice(1);
+  for (var i = 0; i < rawDeclarations.length; i += 2) {
+    declarations.push({
+      type: 'VariableDeclarator',
+      id: buildIdentifierExpr(rawDeclarations[i]),
+      init: writeForm(rawDeclarations[i + 1])
+    })
+  }
+
+  return {
+    type: 'VariableDeclaration',
+    kind: 'var',
+    declarations: declarations
+  };
+};
+
+var buildAssignmentExpr = function(form) {
+  if (form.items.length !== 3) {
+    throw new Error('The "set!" method takes exactly 2 parameters. Got ' + form.items.length-1 + '.');
+  }
+  if (!(form.items[0] instanceof Symbol)) {
+    throw new Error('The "set!" method takes only symbols as 1st parameter.');
+  }
+  return {
+    type: 'AssignmentExpression',
+    operator: '=',
+    left: buildIdentifierExpr(form.items[1]),
+    right: writeForm(form.items[2])
+  };
+};
+
 var builtins = {
-  def: function(form) {
-    // TODO Guard against items.length != 3
-    return {
-      type: 'VariableDeclaration',
-      kind: 'let',
-      declarations: [{
-        type: 'VariableDeclarator',
-        id: buildIdentifierExpr(form.items[1]),
-        init: writeForm(form.items[2])
-      }]
-    };
-  },
-  'set!': function(form) {
-    if (form.items.length !== 3) {
-      throw new Error('The "set!" method takes exactly 2 parameters. Got ' + form.items.length-1 + '.');
-    }
-    if (!(form.items[0] instanceof Symbol)) {
-      throw new Error('The "set!" method takes only symbols as 1st parameter.');
-    }
-    return {
-      type: 'AssignmentExpression',
-      operator: '=',
-      left: buildIdentifierExpr(form.items[1]),
-      right: writeForm(form.items[2])
-    };
-  },
+  def: buildDefinitionExpr,
+  'set!': buildAssignmentExpr,
 
   'if': buildIfExpr,
   'function': buildFunctionExpr,
