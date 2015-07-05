@@ -365,7 +365,6 @@ var write = function(ast) {
     cgReadyAst.body.push(buildExpressionStatement(writeForm(ast[form])));
   }
 
-  require('brushtail').mutateAST(cgReadyAst);
   //console.log(JSON.stringify(cgReadyAst, null, 1));
   return escodegen.generate(cgReadyAst);
 };

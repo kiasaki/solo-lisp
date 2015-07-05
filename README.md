@@ -35,6 +35,21 @@ $ solo test.sl | node --harmony
 | | `(instanceof "asd" Date)` | `"asd" instanceof Date;` |
 | | `(typeof "rick")` | `typeof "rick";` |
 | | `(void 0)` | `void 0;` |
+| Conditionals | `(if (> 2 1) "yes" "no")` | `2 > 1 ? "yes" : "no";` |
+| Assignment | `(def x 2)` | `let x = 2;` |
+| | `(set! module.exports square)` | `module.exports = square;` |
+| Objects | `(new Date)` | `new Date();` |
+| | `(new Array 5)` | `new Array(5);` |
+| Types | `"str\nrts"` | `"str\nrts";` |
+| | `4` | `4;` |
+| | `4.5` | `4.5;` |
+| | `true` | `true;` |
+| | `false` | `false;` |
+| | `null` | `null;` |
+| | `[1 2 3]` | `[1, 2, 3];` |
+| | `{a 1 b 2 c 3}` | `{a: 1, b: 2, c: 3};` |
+| | `(fn prop1 prop2)` | `fn(prop1, prop2);` |
+| | `; comment` | `` |
 
 ## Supported Primitives
 
@@ -44,8 +59,8 @@ instanceof typeof void
 + - * / %
 < <= > >= || && == === != !==
 null? true? false?
-undefined? boolean? number? string? object? array? function?
 def set!
+undefined? boolean? number? string? object? array? function?
 ```
 
 ## Contribute

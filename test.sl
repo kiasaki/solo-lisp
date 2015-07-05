@@ -11,7 +11,7 @@
   a
   (function (a) (a))
   v
-  3
+  3.5
   })
 
 (def square (function (x)
@@ -29,4 +29,4 @@
     from
     (count (+ 1 from) to))))
 
-(console.log (count 0 100000000))
+(console.log (count 0 100))
