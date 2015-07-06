@@ -30,3 +30,8 @@
     (count (+ 1 from) to))))
 
 (console.log (count 0 100))
+
+(try
+  (throw "work")
+  (+ 1 2)
+  (catch (e) (console.log e)))

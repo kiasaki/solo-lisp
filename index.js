@@ -333,7 +333,51 @@ var buildAssignmentExpr = function(form) {
 };
 
 var buildTryExpr = function(form) {
+  var finalizer = null;
+  var handler = null;
+  var body = [];
 
+  for (var i in form.items) {
+    if (form.items[i] && form.items[i].type === 'list') {
+      if (form.items[i].items[0].toString() === 'catch') {
+        if (!form.items[i].items[1] || form.items[i].items[1].type !== 'list'
+          || form.items[i].items[1].items.length !== 1 || !(form.items[i].items[1].items[0] instanceof Symbol)) {
+          throw new Error('Wrong 1 parameter given to "catch" in "try" expression, need to be a list of 1 symbol');
+        }
+        handler = {
+          type: 'CatchClause',
+          param: buildIdentifierExpr(form.items[i].items[1].items[0]),
+          body: {
+            type: 'BlockStatement',
+            body: form.items[i].items.slice(2).map(writeForm).map(buildExpressionStatement)
+          }
+        };
+        form.items.splice(i, 1);
+      } else if (form.items[i].items[0].toString() === 'finally') {
+        finalizer = {
+          type: 'BlockStatement',
+          body: form.items[i].items.slice(1).map(writeForm).map(buildExpressionStatement)
+        };
+        form.items.splice(i, 1);
+      }
+    }
+  }
+
+  if (finalizer === null && handler === null) {
+    finalizer = {type: 'BlockStatement', body: []};
+  }
+
+  return {
+    type: 'TryStatement',
+    block: {
+      type: 'BlockStatement',
+      body: form.items.slice(1).map(writeForm).map(buildExpressionStatement),
+    },
+    guardedHandlers: [],
+    handlers: !!handler ? [handler] : [],
+    handler: handler,
+    finalizer: finalizer
+  };
 };
 
 var buildImportExpr = function(form) {

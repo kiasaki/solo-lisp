@@ -50,12 +50,15 @@ $ solo test.sl | node --harmony
 | | `{a 1 b 2 c 3}` | `{a: 1, b: 2, c: 3};` |
 | | `(fn prop1 prop2)` | `fn(prop1, prop2);` |
 | | `; comment` | `` |
+| Other | `(try)` | `try {} finally {};` |
+| | `(try (catch (xx)))` | `try {} catch (xx) {}` |
+| | `(try (throw "oops") (+ 1 2) (catch (e) (console.log e)))` | `try {throw 'oops'; 1 + 2;} catch (e) {console.log(e);}` |
 
 ## Supported Primitives
 
 ```
-if function new
-instanceof typeof void
+if function new try catch finally
+instanceof typeof void throw
 def set!
 + - * / %
 < <= > >= || && == === != !==
