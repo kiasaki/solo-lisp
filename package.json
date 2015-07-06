@@ -1,6 +1,6 @@
 {
   "name": "solo-lisp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Minimal lisp syntax to plain and readable JavaScript language",
   "author": "Frederic Gingras <frederic@gingras.cc>",
   "bugs": {
