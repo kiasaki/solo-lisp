@@ -390,7 +390,7 @@ var buildImportExpr = function(form) {
     if (!declaration || !declaration.type || declaration.type !== 'list') {
       throw new Error('The parameter #' + n + ' passed to the "import" function can only be a list.');
     }
-    if (!(typeof declaration.items[0] === 'string' || declaration.items[1] instanceof Symbol)) {
+    if (!(typeof declaration.items[0] === 'string' || declaration.items[0] instanceof Symbol)) {
       throw new Error('The 1st element of parameter #' + n + ' passed to the "import" function can only be a string.');
     }
 

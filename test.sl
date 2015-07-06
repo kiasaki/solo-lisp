@@ -38,6 +38,7 @@
   (catch (e) (console.log e)))
 
 (import
+  (path)
   (ramda as R)
   (ramda refer (map)))
 
