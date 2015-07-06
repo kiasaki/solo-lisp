@@ -1,23 +1,30 @@
 {
   "name": "solo-lisp",
   "version": "1.0.0",
-  "description": "_Minimal lisp syntax to plain and readable JavaScript language_",
-  "main": "index.js",
-  "dependencies": {
-    "parsimmon": "^0.7.0"
-  },
-  "devDependencies": {},
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "description": "Minimal lisp syntax to plain and readable JavaScript language",
+  "author": "Frederic Gingras <frederic@gingras.cc>",
+  "bugs": {
+    "url": "https://github.com/kiasaki/solo-lisp/issues"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kiasaki/solo-lisp.git"
   },
-  "author": "Frederic Gingras <frederic@gingras.cc>",
+  "keywords": [
+    "transpiler",
+    "compiler",
+    "language",
+    "lisp",
+    "functionnal"
+  ],
+  "homepage": "https://github.com/kiasaki/solo-lisp#readme",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/kiasaki/solo-lisp/issues"
+  "main": "index.js",
+  "dependencies": {
+    "escodegen": "~1.6.1",
+    "parsimmon": "~0.7.0"
   },
-  "homepage": "https://github.com/kiasaki/solo-lisp#readme"
+  "bin": {
+    "solo": "./bin/solo.js"
+  }
 }

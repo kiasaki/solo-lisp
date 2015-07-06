@@ -144,27 +144,38 @@ var buildFunctionExpr = function(form) {
   if (form.items.length < 3) {
     throw new Error('The "function" expression takes minimum 2 parameters, ' + form.items.length-1 + ' given.');
   }
-  if (form.items[1].type !== 'list') {
+
+  var body = [];
+  var params = [];
+  var functionIdentifier = null;
+  var rawParamsList = form.items[1];
+  var bodyExprsExcludingLast = form.items.slice(2, -1);
+
+  if (form.items[1] instanceof Symbol) {
+    rawParamsList = form.items[2]; // use 2nd arg for params list
+    bodyExprsExcludingLast = form.items.slice(3, -1); // offset body
+    functionIdentifier = buildIdentifierExpr(form.items[1]); // define identifier
+  }
+
+  if (rawParamsList.type !== 'list') {
     throw new Error('The "function" expression takes a list of arguments as first parameter.');
   }
-  for (var i in form.items[1].items) {
-    if (!(form.items[1].items[i] instanceof Symbol)) {
+  for (var i in rawParamsList.items) {
+    if (!(rawParamsList.items[i] instanceof Symbol)) {
       throw new Error('The "function" expression takes a list of arguments names, you passed a non-symbol as argument name');
     }
   }
 
-  var body = [];
-  var params = [];
-
   // Params
-  for (var i in form.items[1].items) {
-    var param = form.items[1].items[i];
-    if (param.toString() === '.' && parseInt(i) === form.items[1].items.length - 2) {
+  var rawParams = rawParamsList.items;
+  for (var i in rawParams) {
+    var param = rawParams[i];
+    if (param.toString() === '.' && parseInt(i) === rawParams.length - 2) {
       body.push(buildDefinitionExpr({
         type: 'list',
-        items: [new Symbol('def'), form.items[1].items[parseInt(i)+1], {
+        items: [new Symbol('def'), rawParams[parseInt(i)+1], {
           type: 'list',
-          items: [new Symbol('Array.prototype.slice.call'), new Symbol('arguments'), form.items[1].items.length-2]
+          items: [new Symbol('Array.prototype.slice.call'), new Symbol('arguments'), rawParams.length-2]
         }]
       }));
       break;
@@ -175,7 +186,6 @@ var buildFunctionExpr = function(form) {
 
 
   // Body
-  var bodyExprsExcludingLast = form.items.slice(2, -1);
   for (var i in bodyExprsExcludingLast) {
     body.push(buildExpressionStatement(writeForm(bodyExprsExcludingLast[i])))
   }
@@ -186,7 +196,7 @@ var buildFunctionExpr = function(form) {
 
   return {
     type: 'FunctionExpression',
-    id: null,
+    id: functionIdentifier,
     params: params,
     defaults: [],
     body: {
@@ -322,13 +332,94 @@ var buildAssignmentExpr = function(form) {
   };
 };
 
+var buildTryExpr = function(form) {
+
+};
+
+var buildImportExpr = function(form) {
+  var declarations = [];
+
+  for (var i in form.items.slice(1)) {
+    var declaration = form.items.slice(1)[i];
+    var n = parseInt(i)+1;
+
+    if (!declaration || !declaration.type || declaration.type !== 'list') {
+      throw new Error('The parameter #' + n + ' passed to the "import" function can only be a list.');
+    }
+    if (typeof declaration.items[0] !== 'string') {
+      throw new Error('The 1st element of parameter #' + n + ' passed to the "import" function can only be a string.');
+    }
+
+    function pushRequire(name, mod, part) {
+      var reqExpr = {
+        type: 'list',
+        items: [new Symbol('require'), mod]
+      };
+
+      if (part) {
+        var justRequireExpr = reqExpr;
+        reqExpr = {
+          type: 'list',
+          items: [new Symbol('get'), new Symbol(part), reqExpr]
+        };
+      }
+
+      declarations.push(buildDefinitionExpr({
+        type: 'list',
+        items: [new Symbol('def'), new Symbol(name), require]
+      }));
+    }
+
+    // Simple require
+    var requireName = declaration.items[0].toString();
+    if (declaration.items.length === 1) {
+
+      pushRequire(requireName, declaration.items[0], null);
+
+    } else if (declaration.items.length === 3 && declaration.items[1] instanceof Symbol
+      && declaration.items[1].toString() === 'as') {
+
+      pushRequire(declaration.items[2].toString(), requireName, null);
+
+    } else if (declaration.items.length === 3 && declaration.items[1] instanceof Symbol
+      && declaration.items[1].toString() === 'refer') {
+
+      if (!declaration.items[2] || !declaration.items[2].type || declaration.items[2].type !== 'list') {
+        throw new Error('The parameter #' + n + ' passed to the "import" specified "refer" but not followed by a list.');
+      }
+      for (var j in declaration.items[2].items) {
+        var referedName = declaration.items[2].items[j].toString();
+        pushRequire(referedName, requireName, referedName);
+      }
+
+    }
+
+  }
+
+  return declarations;
+};
+
+var buildGetExpr = function(form) {
+  var computed = !(form.items[1] instanceof Symbol);
+  return {
+    type: 'MemberExpression',
+    computed: computed,
+    object: writeForm(form.items[1]),
+    property: writeForm(form.items[1])
+  }
+};
+
 var builtins = {
-  def: buildDefinitionExpr,
+  'def': buildDefinitionExpr,
   'set!': buildAssignmentExpr,
+  'import': buildImportExpr,
+  'get': buildGetExpr,
 
   'if': buildIfExpr,
   'function': buildFunctionExpr,
   'new': buildNewExpr,
+  'try': buildTryExpr,
+  'throw': buildUnaryExpr,
 
   'instanceof': buildBinaryExpr,
 
@@ -396,9 +487,15 @@ var write = function(ast) {
   };
 
   for (var form in ast) {
-    cgReadyAst.body.push(buildExpressionStatement(writeForm(ast[form])));
+    var form = writeForm(ast[form]);
+    if ('length' in form) { // support arrays returned by writeForm
+      cgReadyAst.body = cgReadyAst.body.concat(form.map(buildExpressionStatement));
+    } else {
+      cgReadyAst.body.push(buildExpressionStatement(form));
+    }
   }
 
+  // DEBUG
   //console.log(JSON.stringify(cgReadyAst, null, 1));
   return escodegen.generate(cgReadyAst);
 };
