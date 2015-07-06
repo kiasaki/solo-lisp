@@ -39,7 +39,7 @@ var read = (function() {
   var ignore = comment.or(regex(/\s*/));
   function lexeme(p) { return p.skip(ignore); }
 
-  var expr = lazy('s-expression', function() { return form.or(atom); });
+  var expr = lazy('s-expression', function() { return lexeme(form.or(atom)); });
 
   var str = lexeme(regex(/"((?:\\.|.|\s)*?)"/, 1))
     .map(interpretEscapes)
@@ -390,7 +390,7 @@ var buildImportExpr = function(form) {
     if (!declaration || !declaration.type || declaration.type !== 'list') {
       throw new Error('The parameter #' + n + ' passed to the "import" function can only be a list.');
     }
-    if (typeof declaration.items[0] !== 'string') {
+    if (!(typeof declaration.items[0] === 'string' || declaration.items[1] instanceof Symbol)) {
       throw new Error('The 1st element of parameter #' + n + ' passed to the "import" function can only be a string.');
     }
 
@@ -401,16 +401,16 @@ var buildImportExpr = function(form) {
       };
 
       if (part) {
-        var justRequireExpr = reqExpr;
+        var rawReqExpr = reqExpr;
         reqExpr = {
           type: 'list',
-          items: [new Symbol('get'), new Symbol(part), reqExpr]
+          items: [new Symbol('get'), new Symbol(part), rawReqExpr]
         };
       }
 
       declarations.push(buildDefinitionExpr({
         type: 'list',
-        items: [new Symbol('def'), new Symbol(name), require]
+        items: [new Symbol('def'), new Symbol(name), reqExpr]
       }));
     }
 
@@ -448,7 +448,7 @@ var buildGetExpr = function(form) {
   return {
     type: 'MemberExpression',
     computed: computed,
-    object: writeForm(form.items[1]),
+    object: writeForm(form.items[2]),
     property: writeForm(form.items[1])
   }
 };

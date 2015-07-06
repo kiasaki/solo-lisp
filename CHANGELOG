@@ -1,11 +1,13 @@
 ## Current
 
-engine/node.js - Registers `.sl` extension in `module.extensions`
+- engine/node.js - Registers `.sl` extension in `module.extensions`
+- bugfix get expression
+- bugfix import expression not accepting symbols
 
 ## 1.1.0
 
-Added try, catch, throw, finally support
+- Added try, catch, throw, finally support
 
 ## 1.0.0
 
-Initial release
+- Initial release

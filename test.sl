@@ -24,6 +24,7 @@
 (void 0)
 (set! obj.v 6)
 
+; comment
 (def count (function (from to)
   (if (>= from to)
     from
@@ -35,3 +36,12 @@
   (throw "work")
   (+ 1 2)
   (catch (e) (console.log e)))
+
+(import
+  (ramda as R)
+  (ramda refer (map)))
+
+(get 0 [])
+(get a {a 1})
+(get v obj)
+(get v (|| {} {}))

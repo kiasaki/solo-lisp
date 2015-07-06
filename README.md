@@ -40,6 +40,9 @@ $ solo test.sl | node --harmony
 | | `(set! module.exports square)` | `module.exports = square;` |
 | Objects | `(new Date)` | `new Date();` |
 | | `(new Array 5)` | `new Array(5);` |
+| | `(get 0 arr)` | `arr[0];` |
+| | `(get "x" o)` | `o["x"];` |
+| | `(get ch ba)` | `ba.ch;` |
 | Types | `"str\nrts"` | `"str\nrts";` |
 | | `4` | `4;` |
 | | `4.5` | `4.5;` |
