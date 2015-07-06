@@ -56,11 +56,13 @@ $ solo test.sl | node --harmony
 | Other | `(try)` | `try {} finally {};` |
 | | `(try (catch (xx)))` | `try {} catch (xx) {}` |
 | | `(try (throw "oops") (+ 1 2) (catch (e) (console.log e)))` | `try {throw 'oops'; 1 + 2;} catch (e) {console.log(e);}` |
+| | `(do)` | `(function() {}());` |
+| | `(do (set! a 1) (set! b "2"))` | `(function () {a = 1; b = "2";}())` |
 
 ## Supported Primitives
 
 ```
-if function new try catch finally
+if function new try catch finally do
 instanceof typeof void throw
 def set!
 + - * / %

@@ -9,6 +9,11 @@ Symbol.prototype.toString = function() {
   return this.value;
 };
 
+function List(values) {
+  this.items = values || [];
+  this.type = 'list';
+}
+
 var read = (function() {
   function interpretEscapes(str) {
     var escapes = {
@@ -97,8 +102,16 @@ var buildExpressionStatement = function(expr) {
   };
 };
 
+var buildReturnStatement = function(expr) {
+  // Don't wrap things that are already expressions
+  if (expr.type === 'VariableDeclaration') return expr;
+  return {
+    type: 'ReturnStatement',
+    argument: expr
+  };
+};
+
 var buildBinaryExpr = function(form) {
-  // TODO Guard min length 3
   if (form.items.length < 3) {
     throw new Error('The ' + form.items[0] + ' operator need a minimum or 3 params');
   } else if (form.items.length === 3) {
@@ -141,8 +154,8 @@ var buildIfExpr = function(form) {
 };
 
 var buildFunctionExpr = function(form) {
-  if (form.items.length < 3) {
-    throw new Error('The "function" expression takes minimum 2 parameters, ' + form.items.length-1 + ' given.');
+  if (form.items.length < 2) {
+    throw new Error('The "function" expression takes minimum 1 parameters, ' + form.items.length-1 + ' given.');
   }
 
   var body = [];
@@ -150,14 +163,16 @@ var buildFunctionExpr = function(form) {
   var functionIdentifier = null;
   var rawParamsList = form.items[1];
   var bodyExprsExcludingLast = form.items.slice(2, -1);
+  var namedFunction = false;
 
   if (form.items[1] instanceof Symbol) {
     rawParamsList = form.items[2]; // use 2nd arg for params list
     bodyExprsExcludingLast = form.items.slice(3, -1); // offset body
     functionIdentifier = buildIdentifierExpr(form.items[1]); // define identifier
+    namedFunction = true;
   }
 
-  if (rawParamsList.type !== 'list') {
+  if (!rawParamsList || rawParamsList.type !== 'list') {
     throw new Error('The "function" expression takes a list of arguments as first parameter.');
   }
   for (var i in rawParamsList.items) {
@@ -184,15 +199,13 @@ var buildFunctionExpr = function(form) {
     }
   }
 
-
   // Body
   for (var i in bodyExprsExcludingLast) {
     body.push(buildExpressionStatement(writeForm(bodyExprsExcludingLast[i])))
   }
-  body.push({
-    type: 'ReturnStatement',
-    argument: writeForm(form.items[form.items.length - 1])
-  });
+  if ((namedFunction && form.items.length > 3) || (!namedFunction && form.items.length > 2)) {
+    body.push(buildReturnStatement(writeForm(form.items[form.items.length - 1])));
+  }
 
   return {
     type: 'FunctionExpression',
@@ -453,11 +466,20 @@ var buildGetExpr = function(form) {
   }
 };
 
+var buildDoExpr = function(form) {
+  return writeForm(new List([
+    new List(
+      [new Symbol('function'), new List()].concat(form.items.slice(1))
+    )
+  ]));
+};
+
 var builtins = {
   'def': buildDefinitionExpr,
   'set!': buildAssignmentExpr,
   'import': buildImportExpr,
   'get': buildGetExpr,
+  'do': buildDoExpr,
 
   'if': buildIfExpr,
   'function': buildFunctionExpr,

@@ -46,3 +46,14 @@
 (get a {a 1})
 (get v obj)
 (get v (|| {} {}))
+
+(do
+  (def a null)
+  (def b false)
+  (def c 1))
+
+(do)
+
+(function ()
+  (do))
+

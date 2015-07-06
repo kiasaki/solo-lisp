@@ -1,5 +1,6 @@
-## Current
+## 1.2.0
 
+- added "do" primitive
 - engine/node.js - Registers `.sl` extension in `module.extensions`
 - bugfix get expression
 - bugfix import expression not accepting symbols
