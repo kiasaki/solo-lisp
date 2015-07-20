@@ -6,6 +6,7 @@ var solo = require('../index');
 var compilePath = function(path) {
   var source = readFileSync(path, 'utf8');
   var output = solo.write(solo.parse(source));
+  return output;
 }
 
 // Register `.solo` file extension so that

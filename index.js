@@ -96,15 +96,49 @@ var parse = function(source) {
 var buildExpressionStatement = function(expr) {
   // Don't wrap things that are already expressions
   if (expr.type === 'VariableDeclaration') return expr;
+  if (expr.type === 'FunctionExpression') return expr;
   return {
     type: 'ExpressionStatement',
     expression: expr
   };
 };
 
+var buildFunctionStatement = function(identifier, params, body) {
+  return {
+    type: 'FunctionExpression',
+    id: identifier,
+    params: params,
+    defaults: [],
+    body: {
+      type: 'BlockStatement',
+      body: body,
+      generator: false,
+      expression: true
+    }
+  }
+};
+
+var buildSelfInvokingFunction = function(expr) {
+ return {
+    type: 'CallExpression',
+    callee: buildFunctionStatement(null, [], expr),
+    arguments: []
+  };
+};
+
 var buildReturnStatement = function(expr) {
   // Don't wrap things that are already expressions
-  if (expr.type === 'VariableDeclaration') return expr;
+  if (expr.type === 'VariableDeclaration') {
+    return expr;
+  }
+  if (expr.type === 'ThrowStatement') {
+    return expr;
+  }
+  // You can't return a try without wrapping it
+  if (expr.type === 'TryStatement') {
+    return buildSelfInvokingFunction([expr]);
+  }
+
   return {
     type: 'ReturnStatement',
     argument: expr
@@ -145,11 +179,22 @@ var buildIfExpr = function(form) {
   if (form.items.length !== 4) {
     throw new Error('The "if" expression takes exactly 3 parameters, ' + form.items.length-1 + ' given.');
   }
+
+  var consequent = writeForm(form.items[2]);
+  var alternate = writeForm(form.items[3]);
+
+  if (consequent.type === 'ThrowStatement') {
+    consequent = buildSelfInvokingFunction([consequent]);
+  }
+  if (alternate.type === 'ThrowStatement') {
+    alternate = buildSelfInvokingFunction([alternate]);
+  }
+
   return {
     type: 'ConditionalExpression',
     test: writeForm(form.items[1]),
-    consequent: writeForm(form.items[2]),
-    alternate: writeForm(form.items[3])
+    consequent: consequent,
+    alternate: alternate
   };
 };
 
@@ -207,18 +252,7 @@ var buildFunctionExpr = function(form) {
     body.push(buildReturnStatement(writeForm(form.items[form.items.length - 1])));
   }
 
-  return {
-    type: 'FunctionExpression',
-    id: functionIdentifier,
-    params: params,
-    defaults: [],
-    body: {
-      type: 'BlockStatement',
-      body: body,
-      generator: false,
-      expression: true
-    }
-  };
+  return buildFunctionStatement(functionIdentifier, params, body);
 };
 
 var buildUnaryExpr = function(form) {
@@ -410,7 +444,7 @@ var buildImportExpr = function(form) {
     function pushRequire(name, mod, part) {
       var reqExpr = {
         type: 'list',
-        items: [new Symbol('require'), mod]
+        items: [new Symbol('require'), mod.toString()]
       };
 
       if (part) {
@@ -474,6 +508,16 @@ var buildDoExpr = function(form) {
   ]));
 };
 
+var buildThrowExpr = function(form) {
+  if (form.type !== 'list') throw new Error('throw used in a non list');
+  if (form.items.length !== 2) throw new Error('throw expected exactly 1 argument, got ' + form.items.length-1);
+
+  return {
+    type: 'ThrowStatement',
+    argument: writeForm(form.items[1])
+  };
+};
+
 var builtins = {
   'def': buildDefinitionExpr,
   'set!': buildAssignmentExpr,
@@ -485,7 +529,7 @@ var builtins = {
   'function': buildFunctionExpr,
   'new': buildNewExpr,
   'try': buildTryExpr,
-  'throw': buildUnaryExpr,
+  'throw': buildThrowExpr,
 
   'instanceof': buildBinaryExpr,
 
@@ -525,6 +569,11 @@ var writeForm = function(form) {
   if (form === null) { return {type: 'Literal', value: null};
   } else if (form === true) { return {type: 'Literal', value: true};
   } else if (form === false) { return {type: 'Literal', value: false};
+  } else if (['TryStatement', 'FunctionExpression', 'Literal'].indexOf(form.type) !== -1) {
+    // We have an already written form, some buildExpr function is probably doing
+    // some macros like in the buildReturnStatement function.
+    // Simply return the raw already written expr
+    return form;
   } else if (form.type === 'list') {
     if (form.items[0] && form.items[0].toString() in builtins) {
       return builtins[form.items[0].toString()](form);

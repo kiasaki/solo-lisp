@@ -20,6 +20,9 @@
   "homepage": "https://github.com/kiasaki/solo-lisp#readme",
   "license": "MIT",
   "main": "index.js",
+  "scripts": {
+    "test": "node test"
+  },
   "dependencies": {
     "escodegen": "~1.6.1",
     "parsimmon": "~0.7.0"
