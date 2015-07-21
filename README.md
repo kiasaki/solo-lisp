@@ -1,5 +1,7 @@
 # Solo Lang
 
+[![Build Status](https://travis-ci.org/kiasaki/solo-lisp.svg)](https://travis-ci.org/kiasaki/solo-lisp)
+
 _Minimal lisp syntax to plain and readable JavaScript compiler_
 
 **Solo** is not a separate language but really a way of writing JavaScript in a
