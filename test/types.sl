@@ -4,4 +4,8 @@
 (suite "types" (function ()
 
   (test "strings" (function ()
-    (assertEq "a" "a")))))
+    (assertEq "a" "a")))
+
+  (test "numbers" (function ()
+    (assertEq 0 0)
+    (assertEq 5 5)))))

@@ -23,7 +23,9 @@
   (console.log)
 
   (if (> TESTS_FAILED 0)
-    (logRed text)
+    (do
+      (logRed text)
+      (process.exit 1))
     (logGrn text)))
 
 ; Library public functions
@@ -37,17 +39,23 @@
   (set! CURRENT_TEST name)
   (try
     (block)
+    (set! TESTS_PASSED (+ 1 TESTS_PASSED))
     (process.stdout.write ".")
     (catch (e)
+      (set! TESTS_FAILED (+ 1 TESTS_FAILED))
       (logRed (+ "FAIL [" CURRENT_SUITE "] " CURRENT_TEST))))))
 
 (def assertEq (function (left right)
   (if (=== left right)
-    (set! TESTS_PASSED (+ 1 TESTS_PASSED))
-    (do
-      (set! TESTS_FAILED (+ 1 TESTS_FAILED))
-      (throw (+ "Not equal " left " !== " right))))))
+    null
+    (throw (+ "Unexpected: " left " !== " right)))))
+
+(def assertNotEq (function (left right)
+  (if (!== left right)
+    null
+    (throw (+ "Unexpected: " left " === " right)))))
 
 (set! exports.suite suite)
 (set! exports.test test)
 (set! exports.assertEq assertEq)
+(set! exports.assertNotEq assertNotEq)
