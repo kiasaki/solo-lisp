@@ -374,7 +374,7 @@ var buildAssignmentExpr = function(form) {
   return {
     type: 'AssignmentExpression',
     operator: '=',
-    left: buildIdentifierExpr(form.items[1]),
+    left: writeForm(form.items[1]),
     right: writeForm(form.items[2])
   };
 };
@@ -451,7 +451,7 @@ var buildImportExpr = function(form) {
         var rawReqExpr = reqExpr;
         reqExpr = {
           type: 'list',
-          items: [new Symbol('get'), new Symbol(part), rawReqExpr]
+          items: [new Symbol('get'), part.toString(), rawReqExpr]
         };
       }
 
@@ -491,10 +491,9 @@ var buildImportExpr = function(form) {
 };
 
 var buildGetExpr = function(form) {
-  var computed = !(form.items[1] instanceof Symbol);
   return {
     type: 'MemberExpression',
-    computed: computed,
+    computed: true,
     object: writeForm(form.items[2]),
     property: writeForm(form.items[1])
   }
